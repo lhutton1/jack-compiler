@@ -1,10 +1,14 @@
 package com.lexer;
 
+import com.lexer.FileScanner;
+
+import java.io.EOFException;
+
 public class Tokenizer {
-    private Scanner scanner;
+    private FileScanner fileScanner;
 
     public Token getNextToken() {
-        this.scanner.getNextLexeme();
+        return null;
     }
 
     public Token peekNextToken() {
@@ -12,6 +16,12 @@ public class Tokenizer {
     }
 
     public static void main(String[] args) {
-        System.out.println("Hello");
+        FileScanner sc = new FileScanner("in/helloworld.jack");
+
+        try {
+            while(true){System.out.println(sc.getNextCharacter());}
+        } catch (EOFException ex) {
+            // swallow exception since end of file reached
+        }
     }
 }
