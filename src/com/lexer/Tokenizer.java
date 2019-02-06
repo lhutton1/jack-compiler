@@ -1,12 +1,13 @@
 package com.lexer;
 
 public class Tokenizer {
+    private Scanner scanner;
 
-    public Token GetNextToken() {
-        return null;
+    public Token getNextToken() {
+        this.scanner.getNextLexeme();
     }
 
-    public Token PeekNextToken() {
+    public Token peekNextToken() {
         return null;
     }
 
