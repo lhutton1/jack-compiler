@@ -1,3 +1,10 @@
 /** Hello world program example */
 // Hello
-class Main
+class Main {
+    function void main () {
+        // Prints some text using the standard library
+        do Output.printString("Hello World");
+        do Output.println();    // New line
+        return;
+    }
+}
