@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Arrays;
 import java.nio.charset.Charset;
 
+import com.lexer.Token;
+
 public class Tokenizer {
     private File file;
     private BufferedReader br;
@@ -71,7 +73,6 @@ public class Tokenizer {
                     new InputStreamReader(new FileInputStream(file),
                             Charset.forName("UTF-8"))
             );
-
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -121,7 +122,6 @@ public class Tokenizer {
         } catch (IOException ex) {
             System.out.println("Peek failed");
         }
-
         return nextCharacter;
     }
 
@@ -140,13 +140,13 @@ public class Tokenizer {
                 }
                 this.read();
 
-                // strip comments // only stopping when new line or EOF reached
+            // strip comments // only stopping when new line or EOF reached
             } else if (this.peek() == '/' && this.peek(2) == '/') {
                 while (this.peek() != '\n' && this.peek() != -1) {
                     this.read();
                 }
 
-                // remove white space characters
+            // remove white space characters
             } else {
                 this.read();
             }
@@ -172,7 +172,24 @@ public class Tokenizer {
     }
 
     public Token getNextToken() {
-        return null;
+        int c;
+        Token t = new Token();
+
+        this.stripWhiteSpaceAndComments();
+        c = this.peek();
+
+        // Check end of file
+        if (c == -1)
+            t.type = Token.TokenTypes.EOF;
+
+        // Check is letter: keyword or identifier
+        if (Character.isLetter(c))
+            t.type = Token.TokenTypes.keyword;
+
+        // Check is integer
+        // Check is symbol
+
+        return t;
     }
 
     public Token peekNextToken() {

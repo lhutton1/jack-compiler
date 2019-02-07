@@ -7,15 +7,19 @@ package com.lexer;
  * the input file.
  */
 public class Token {
-    private enum TokenTypes {
+    public enum TokenTypes {
         keyword,
         id,
-        assignop,
-        addop,
-        mulop,
-        num
+        integer,
+        symbol,
+        EOF
     }
 
     public String lexeme;
     public TokenTypes type;
+
+    @Override
+    public String toString() {
+        return "<\"" + lexeme + "\", " + type +">";
+    }
 }
