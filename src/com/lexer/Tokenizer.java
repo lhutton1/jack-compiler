@@ -5,13 +5,9 @@ import java.util.HashSet;
 import java.util.Arrays;
 import java.nio.charset.Charset;
 
-import com.lexer.Token;
-
 public class Tokenizer {
-    private File file;
     private BufferedReader br;
     private int lineNumber;
-
 
     private HashSet<String> keywords = new HashSet<>(Arrays.asList(
             "class",
@@ -37,41 +33,65 @@ public class Tokenizer {
             "return"
     ));
 
-    private HashSet<String> symbols = new HashSet<>(Arrays.asList(
-            "{",
-            "}",
-            "(",
-            ")",
-            "[",
-            "]",
-            ".",
-            ",",
-            ";",
-            "+",
-            "-",
-            "*",
-            "/",
-            "&",
-            "|",
-            "<",
-            ">",
-            "=",
-            "-"
+    private HashSet<Character> symbols = new HashSet<>(Arrays.asList(
+            '{',
+            '}',
+            '(',
+            ')',
+            '[',
+            ']',
+            '.',
+            ',',
+            ';',
+            '+',
+            '-',
+            '*',
+            '/',
+            '&',
+            '|',
+            '<',
+            '>',
+            '=',
+            '-'
     ));
+
+    private HashSet<Character> whiteSpaceDelimiters = new HashSet<>(Arrays.asList(
+            ' ',
+            '\n',
+            '\r',
+            '\t'
+    ));
+
+    /**
+     * https://stackoverflow.com/questions/3571223/how-do-i-get-the-file-extension-of-a-file-in-java
+     * @param filePath
+     * @return
+     */
+    private String getFileExtension(String filePath) {
+        String extension = "";
+        int i = filePath.lastIndexOf('.');
+        if (i >= 0)
+            extension = filePath.substring(i+1);
+        return extension;
+    }
 
     /**
      * Create an instance of the Tokenizer and try to create a Buffered
      * Reader pointing to the filePath specified.
      * @param filePath file path to read file from
      */
-    Tokenizer(String filePath) {
-        lineNumber = 0;
+    Tokenizer(String filePath) throws IllegalArgumentException {
+        File file;
+        lineNumber = 1;
+
+        if (!getFileExtension(filePath).equals("jack"))
+            throw new IllegalArgumentException("File must be of type '.jack'");
 
         try {
-            this.file = new File(filePath);
+            file = new File(filePath);
             this.br = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(file),
-                            Charset.forName("UTF-8"))
+                new InputStreamReader(new FileInputStream(file),
+                Charset.forName("UTF-8"))
             );
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -89,6 +109,11 @@ public class Tokenizer {
             nextCharacter = (br.read());
         } catch (IOException ex) {
             System.out.println("Read failed");
+        }
+        // add to the line counter when
+        // newline character encountered
+        if (nextCharacter == '\n') {
+            lineNumber++;
         }
 
         return nextCharacter;
@@ -113,11 +138,9 @@ public class Tokenizer {
 
         try {
             br.mark(lookAheadValue);
-
             for (int x = 0; x < lookAheadValue; x++) {
                 nextCharacter = br.read();
             }
-
             br.reset();
         } catch (IOException ex) {
             System.out.println("Peek failed");
@@ -153,43 +176,82 @@ public class Tokenizer {
         }
     }
 
-    /**
-     * Check if the current lexeme is a keyword.
-     * @param lexeme current lexeme
-     * @return Boolean, true if exists
-     */
-    private Boolean isKeyword(String lexeme) {
-        return this.keywords.contains(lexeme);
+    private Token createToken(String lexeme) {
+        return createToken(lexeme, null);
     }
 
-    /**
-     * Check if the current lexeme is a symbol.
-     * @param lexeme current lexeme
-     * @return Boolean, true if exists
-     */
-    private Boolean isSymbol(String lexeme) {
-        return this.symbols.contains(lexeme);
-    }
-
-    public Token getNextToken() {
-        int c;
+    private Token createToken(String lexeme, Token.TokenTypes type) {
         Token t = new Token();
+        t.lexeme = lexeme;
+        t.type = type;
+        t.lineNumber = this.lineNumber;
+        return t;
+    }
+
+    private String getMultiCharacterLexeme(int currentCharacter) {
+        int c = currentCharacter;
+        StringBuilder lexeme = new StringBuilder();
+        lexeme.append((char)c);
+
+        // iterate until delimiter found
+        while (!whiteSpaceDelimiters.contains((char)c) && !symbols.contains((char)c)) {
+            c = (char)this.read();
+            lexeme.append((char)c);
+            c = this.peek();
+        }
+
+        return lexeme.toString();
+    }
+
+    private String getStringLexeme(int currentCharacter) {
+        int c = currentCharacter;
+        StringBuilder lexeme = new StringBuilder();
+        lexeme.append((char)c);
+
+        do {
+            c = (char)this.read();
+            lexeme.append((char)c);
+            c = this.peek();
+        } while(c != '"');
+
+        lexeme.append((char)this.read());
+        return lexeme.toString();
+    }
+
+
+    public Token getNextToken() throws IllegalArgumentException {
+        int c;
 
         this.stripWhiteSpaceAndComments();
-        c = this.peek();
+        c = this.read();
 
-        // Check end of file
+        // check if EOF token
         if (c == -1)
-            t.type = Token.TokenTypes.EOF;
+            return createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
+
+        // Check if string literal token
+        else if (c == '"')
+            return createToken(getStringLexeme(c), Token.TokenTypes.string);
 
         // Check is letter: keyword or identifier
-        if (Character.isLetter(c))
-            t.type = Token.TokenTypes.keyword;
+        else if (Character.isLetter(c)) {
+            Token t = createToken(getMultiCharacterLexeme(c));
+            t.type = keywords.contains(t.lexeme) ?
+                    Token.TokenTypes.keyword : Token.TokenTypes.identifier;
+            return t;
+        }
 
-        // Check is integer
-        // Check is symbol
+        // Check if integer
+        else if (Character.isDigit((char)c))
+            return  createToken(getMultiCharacterLexeme(c), Token.TokenTypes.integer);
 
-        return t;
+        // Check if symbol
+        else if (symbols.contains((char)c))
+            return createToken(String.valueOf((char)c), Token.TokenTypes.symbol);
+
+        else {
+            throw new IllegalArgumentException("Unresolved symbol");
+        }
     }
 
     public Token peekNextToken() {

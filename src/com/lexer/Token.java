@@ -9,17 +9,19 @@ package com.lexer;
 public class Token {
     public enum TokenTypes {
         keyword,
-        id,
+        identifier,
         integer,
         symbol,
-        EOF
+        EOF,
+        string
     }
 
     public String lexeme;
     public TokenTypes type;
+    public int lineNumber;
 
     @Override
     public String toString() {
-        return "<\"" + lexeme + "\", " + type +">";
+        return "<Token \"" + lexeme + "\", " + type + ", " + lineNumber + ">";
     }
 }

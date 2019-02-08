@@ -1,5 +1,7 @@
 /** Hello world program example */
 // Hello
+44
+do Output.printString()
 class Main {
     function void main () {
         // Prints some text using the standard library
