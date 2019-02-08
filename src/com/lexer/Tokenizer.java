@@ -63,19 +63,6 @@ public class Tokenizer {
     ));
 
     /**
-     * https://stackoverflow.com/questions/3571223/how-do-i-get-the-file-extension-of-a-file-in-java
-     * @param filePath
-     * @return
-     */
-    private String getFileExtension(String filePath) {
-        String extension = "";
-        int i = filePath.lastIndexOf('.');
-        if (i >= 0)
-            extension = filePath.substring(i+1);
-        return extension;
-    }
-
-    /**
      * Create an instance of the Tokenizer and try to create a Buffered
      * Reader pointing to the filePath specified.
      * @param filePath file path to read file from
@@ -99,6 +86,22 @@ public class Tokenizer {
     }
 
     /**
+     * Get the extension of a filePath.
+     * Modified from: https://stackoverflow.com/questions/3571223/
+     * how-do-i-get-the-file-extension-of-a-file-in-java
+     *
+     * @param filePath string containing the relative path of the file
+     * @return the file extension
+     */
+    private String getFileExtension(String filePath) {
+        String extension = "";
+        int i = filePath.lastIndexOf('.');
+        if (i >= 0)
+            extension = filePath.substring(i+1);
+        return extension;
+    }
+
+    /**
      * Read a single character from the file that has been referenced.
      * @return int, resembling a character
      */
@@ -110,12 +113,9 @@ public class Tokenizer {
         } catch (IOException ex) {
             System.out.println("Read failed");
         }
-        // add to the line counter when
-        // newline character encountered
-        if (nextCharacter == '\n') {
+        // add to the line counter when newline character encountered
+        if (nextCharacter == '\n')
             lineNumber++;
-        }
-
         return nextCharacter;
     }
 
@@ -176,10 +176,22 @@ public class Tokenizer {
         }
     }
 
+    /**
+     * Create a new token with no type initialized.
+     * @param lexeme String
+     * @return Token
+     */
     private Token createToken(String lexeme) {
         return createToken(lexeme, null);
     }
 
+    /**
+     * Create a new token given the lexeme and the token type.
+     * The lineNumber is added here also.
+     * @param lexeme String
+     * @param type TokenType
+     * @return Token
+     */
     private Token createToken(String lexeme, Token.TokenTypes type) {
         Token t = new Token();
         t.lexeme = lexeme;
@@ -188,6 +200,14 @@ public class Tokenizer {
         return t;
     }
 
+    /**
+     * If a lexeme begins with a letter or integer, then there may well
+     * be more than one character. This method finds the rest of the
+     * characters and builds a lexeme. If the function runs into an EOF
+     * character, something has gone wrong.
+     * @param currentCharacter The character currently being compared
+     * @return String containing lexeme
+     */
     private String getMultiCharacterLexeme(int currentCharacter) {
         int c = currentCharacter;
         StringBuilder lexeme = new StringBuilder();
@@ -199,17 +219,26 @@ public class Tokenizer {
             lexeme.append((char)c);
             c = this.peek();
         }
-
         return lexeme.toString();
     }
 
-    private String getStringLexeme(int currentCharacter) {
+    /**
+     * If a lexeme begins with a '"', then there will be more than
+     * one character. This method finds the rest of the characters
+     * and builds a lexeme. If the function runs into an EOF character,
+     * something has gone wrong.
+     * @param currentCharacter The character currently being compared
+     * @return String containing lexeme
+     */
+    private String getStringLexeme(int currentCharacter) throws EOFException {
         int c = currentCharacter;
         StringBuilder lexeme = new StringBuilder();
         lexeme.append((char)c);
 
         do {
             c = (char)this.read();
+            if (c == -1 || c == 65535)
+                throw new EOFException("Unexpected end of file reached");
             lexeme.append((char)c);
             c = this.peek();
         } while(c != '"');
@@ -218,19 +247,21 @@ public class Tokenizer {
         return lexeme.toString();
     }
 
-
-    public Token getNextToken() throws IllegalArgumentException {
+    /**
+     * Get the next token by reading the next values in the input stream.
+     * @return Token
+     * @throws EOFException if the end of the file is reached
+     * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
+     */
+    public Token getNextToken() throws IllegalArgumentException, EOFException {
         int c;
 
         this.stripWhiteSpaceAndComments();
         c = this.read();
 
-        // check if EOF token
-        if (c == -1)
+        if (c == -1) // check if EOF token
             return createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
-
-        // Check if string literal token
-        else if (c == '"')
+        else if (c == '"') // Check if string literal token
             return createToken(getStringLexeme(c), Token.TokenTypes.string);
 
         // Check is letter: keyword or identifier
@@ -241,17 +272,12 @@ public class Tokenizer {
             return t;
         }
 
-        // Check if integer
-        else if (Character.isDigit((char)c))
+        else if (Character.isDigit((char)c)) // Check if integer
             return  createToken(getMultiCharacterLexeme(c), Token.TokenTypes.integer);
-
-        // Check if symbol
-        else if (symbols.contains((char)c))
+        else if (symbols.contains((char)c)) // Check if symbol
             return createToken(String.valueOf((char)c), Token.TokenTypes.symbol);
-
-        else {
+        else // Invalid symbol not supported by the jack compiler
             throw new IllegalArgumentException("Unresolved symbol");
-        }
     }
 
     public Token peekNextToken() {
