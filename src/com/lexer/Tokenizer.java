@@ -8,6 +8,11 @@ import java.nio.charset.Charset;
 public class Tokenizer {
     private BufferedReader br;
     private int lineNumber;
+    private Token previousToken;
+    private Boolean peeked;
+
+    //TODO
+    // - deal with _ identifiers
 
     private HashSet<String> keywords = new HashSet<>(Arrays.asList(
             "class",
@@ -70,6 +75,7 @@ public class Tokenizer {
     Tokenizer(String filePath) throws IllegalArgumentException {
         File file;
         lineNumber = 1;
+        this.peeked = false;
 
         if (!getFileExtension(filePath).equals("jack"))
             throw new IllegalArgumentException("File must be of type '.jack'");
@@ -255,32 +261,50 @@ public class Tokenizer {
      */
     public Token getNextToken() throws IllegalArgumentException, EOFException {
         int c;
+        Token t;
 
         this.stripWhiteSpaceAndComments();
         c = this.read();
 
         if (c == -1) // check if EOF token
-            return createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
+            t = createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
         else if (c == '"') // Check if string literal token
-            return createToken(getStringLexeme(c), Token.TokenTypes.string);
+            t = createToken(getStringLexeme(c), Token.TokenTypes.string);
 
-        // Check is letter: keyword or identifier
+        // Check for letter: keyword or identifier
         else if (Character.isLetter(c)) {
-            Token t = createToken(getMultiCharacterLexeme(c));
+            t = createToken(getMultiCharacterLexeme(c));
             t.type = keywords.contains(t.lexeme) ?
                     Token.TokenTypes.keyword : Token.TokenTypes.identifier;
-            return t;
         }
 
         else if (Character.isDigit((char)c)) // Check if integer
-            return  createToken(getMultiCharacterLexeme(c), Token.TokenTypes.integer);
+            t = createToken(getMultiCharacterLexeme(c), Token.TokenTypes.integer);
         else if (symbols.contains((char)c)) // Check if symbol
-            return createToken(String.valueOf((char)c), Token.TokenTypes.symbol);
+            t = createToken(String.valueOf((char)c), Token.TokenTypes.symbol);
         else // Invalid symbol not supported by the jack compiler
-            throw new IllegalArgumentException("Unresolved symbol");
+            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved symbol \"" + (char)c + "\" found.");
+
+        // store token to enable peek to function
+        this.peeked = false;
+        this.previousToken = t;
+        return t;
+
     }
 
-    public Token peekNextToken() {
-        return null;
+    /**
+     * Peek the next token and return the result, without
+     * reading ahead to the next token.
+     * @return The next token.
+     * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
+     * @throws EOFException if the end of the file is reached
+     */
+    public Token peekNextToken() throws IllegalArgumentException, EOFException {
+        if (this.peeked)
+            return this.previousToken;
+
+        Token nextToken = this.getNextToken();
+        this.peeked = true;
+        return nextToken;
     }
 }
