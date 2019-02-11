@@ -11,10 +11,6 @@ public class Tokenizer {
     private Token previousToken;
     private boolean peeked;
 
-    //TODO
-    // - deal with _ identifiers
-    // fix string constants
-
     private HashSet<String> keywords = new HashSet<>(Arrays.asList(
             "class",
             "constructor",
@@ -158,14 +154,17 @@ public class Tokenizer {
 
     /**
      * Strip any white space and comments that exist in the input stream.
+     * @exception EOFException throw EOF exception if the end of the file has been reached unexpectedly
      */
-    private void stripWhiteSpaceAndComments() {
+    private void stripWhiteSpaceAndComments() throws EOFException {
         HashSet<Character> detectChars = new HashSet<>(Arrays.asList(' ', '\t', '\n', '/', '\r'));
-
+        // while comments or white space need to be removed loop.
         while (detectChars.contains((char)this.peek()) && this.peek() != -1) {
             // strip comments /** or /!* only stopping when */ or EOF reached
             if (this.peek() == '/' && (this.peek(2) == '*' || this.peek(2) == '!')) {
-                while((this.peek() != '*' || this.peek(2) != '/') && this.peek() != -1) {
+                while((this.peek() != '*' || this.peek(2) != '/')) {
+                    if (this.peek() == -1)
+                        throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning multiline comment");
                     this.read();
                 }
                 this.read();
@@ -220,24 +219,29 @@ public class Tokenizer {
      * characters and builds a lexeme. If the function runs into an EOF
      * character, something has gone wrong.
      * @param currentCharacter The character currently being compared
+     * @param isStringConstant if a string has been detected in getNextToken,
+     *        then we need to know to only look out for a '"' and no other delimiters
      * @return String containing lexeme
      * @exception EOFException Thrown when the entire file has been read unexpectedly.
      */
     private String getMultiCharacterLexeme(int currentCharacter, boolean isStringConstant) throws EOFException {
         int c = currentCharacter;
         StringBuilder lexeme = new StringBuilder();
-        lexeme.append((char)c);
-        //System.out.println(isStringConstant);
 
         // iterate until delimiter found
-        while (detectDelimiter(c, isStringConstant)) {
-            c = (char)this.read();
-            if (c == -1 || c == 65535)
-                throw new EOFException("Unexpected end of file reached");
+        while (detectDelimiter((char)this.peek(), isStringConstant)) {
+            // ending string literal not found before EOF
+            if ((c == -1 || c == 65535) && isStringConstant)
+                throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning string literal");
+            // possible grammar error but not dealt with yet
+            else if (c == -1 || c == 65535)
+                return lexeme.toString();
 
             lexeme.append((char)c);
-            c = this.peek();
+            c = (char)this.read();
         }
+        // append last character and return lexeme
+        lexeme.append((char)c);
         return lexeme.toString();
     }
 
@@ -259,7 +263,7 @@ public class Tokenizer {
      * @throws EOFException if the end of the file is reached
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      */
-    public Token getNextToken() throws IllegalArgumentException, EOFException {
+    Token getNextToken() throws IllegalArgumentException, EOFException {
         int c;
         Token t;
 
@@ -288,7 +292,7 @@ public class Tokenizer {
         else // Invalid symbol not supported by the jack compiler
             throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved symbol \"" + (char)c + "\" found.");
 
-        // store token to enable peek to function
+        // store current token to enable peek to function
         this.peeked = false;
         this.previousToken = t;
         return t;
@@ -301,7 +305,7 @@ public class Tokenizer {
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      * @throws EOFException if the end of the file is reached
      */
-    public Token peekNextToken() throws IllegalArgumentException, EOFException {
+    Token peekNextToken() throws IllegalArgumentException, EOFException {
         if (this.peeked)
             return this.previousToken;
 

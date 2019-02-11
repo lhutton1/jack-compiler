@@ -8,7 +8,6 @@ public class Tokenizer_test {
         Token token;
 
         while ((token = t.getNextToken()).type != Token.TokenTypes.EOF) {
-            //t.getNextToken();
             System.out.println(token);
         }
     }
