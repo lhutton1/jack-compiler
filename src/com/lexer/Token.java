@@ -13,7 +13,7 @@ public class Token {
         integer,
         symbol,
         EOF,
-        string
+        stringConstant
     }
 
     public String lexeme;

@@ -1,6 +1,5 @@
 /** Hello world program example */
 // Hello
-@
 class Main {
     function void main () {
         // Prints some text using the standard library

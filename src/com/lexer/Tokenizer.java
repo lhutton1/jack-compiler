@@ -9,10 +9,11 @@ public class Tokenizer {
     private BufferedReader br;
     private int lineNumber;
     private Token previousToken;
-    private Boolean peeked;
+    private boolean peeked;
 
     //TODO
     // - deal with _ identifiers
+    // fix string constants
 
     private HashSet<String> keywords = new HashSet<>(Arrays.asList(
             "class",
@@ -207,21 +208,33 @@ public class Tokenizer {
     }
 
     /**
+     * Override, giving default argument for isStringConstant.
+     */
+    private String getMultiCharacterLexeme(int currentCharacter) throws EOFException {
+        return this.getMultiCharacterLexeme(currentCharacter, false);
+    }
+
+    /**
      * If a lexeme begins with a letter or integer, then there may well
      * be more than one character. This method finds the rest of the
      * characters and builds a lexeme. If the function runs into an EOF
      * character, something has gone wrong.
      * @param currentCharacter The character currently being compared
      * @return String containing lexeme
+     * @exception EOFException Thrown when the entire file has been read unexpectedly.
      */
-    private String getMultiCharacterLexeme(int currentCharacter) {
+    private String getMultiCharacterLexeme(int currentCharacter, boolean isStringConstant) throws EOFException {
         int c = currentCharacter;
         StringBuilder lexeme = new StringBuilder();
         lexeme.append((char)c);
+        //System.out.println(isStringConstant);
 
         // iterate until delimiter found
-        while (!whiteSpaceDelimiters.contains((char)c) && !symbols.contains((char)c)) {
+        while (detectDelimiter(c, isStringConstant)) {
             c = (char)this.read();
+            if (c == -1 || c == 65535)
+                throw new EOFException("Unexpected end of file reached");
+
             lexeme.append((char)c);
             c = this.peek();
         }
@@ -229,28 +242,15 @@ public class Tokenizer {
     }
 
     /**
-     * If a lexeme begins with a '"', then there will be more than
-     * one character. This method finds the rest of the characters
-     * and builds a lexeme. If the function runs into an EOF character,
-     * something has gone wrong.
-     * @param currentCharacter The character currently being compared
-     * @return String containing lexeme
+     * Detect a delimiter dependent upon whether a string is being
+     * detected or an identifier/keyword.
+     * @param c the current character
+     * @param isStringConstant determine whether to look for '"' or whitespace and symbols
+     * @return false if end of statement has not been reached
      */
-    private String getStringLexeme(int currentCharacter) throws EOFException {
-        int c = currentCharacter;
-        StringBuilder lexeme = new StringBuilder();
-        lexeme.append((char)c);
-
-        do {
-            c = (char)this.read();
-            if (c == -1 || c == 65535)
-                throw new EOFException("Unexpected end of file reached");
-            lexeme.append((char)c);
-            c = this.peek();
-        } while(c != '"');
-
-        lexeme.append((char)this.read());
-        return lexeme.toString();
+    private boolean detectDelimiter(int c, boolean isStringConstant) {
+        return isStringConstant ? c != '"' :
+                !whiteSpaceDelimiters.contains((char)c) && !symbols.contains((char)c);
     }
 
     /**
@@ -268,11 +268,14 @@ public class Tokenizer {
 
         if (c == -1) // check if EOF token
             t = createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
-        else if (c == '"') // Check if string literal token
-            t = createToken(getStringLexeme(c), Token.TokenTypes.string);
+        else if (c == '"') { // Check if string literal token
+            c = this.read();
+            t = createToken(getMultiCharacterLexeme(c, true), Token.TokenTypes.stringConstant);
+            this.read(); // discard last '"'
+        }
 
         // Check for letter: keyword or identifier
-        else if (Character.isLetter(c)) {
+        else if (Character.isLetter(c) || c == '_') {
             t = createToken(getMultiCharacterLexeme(c));
             t.type = keywords.contains(t.lexeme) ?
                     Token.TokenTypes.keyword : Token.TokenTypes.identifier;
@@ -289,7 +292,6 @@ public class Tokenizer {
         this.peeked = false;
         this.previousToken = t;
         return t;
-
     }
 
     /**
