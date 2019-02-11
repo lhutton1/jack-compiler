@@ -57,13 +57,6 @@ public class Tokenizer {
             '-'
     ));
 
-    private HashSet<Character> whiteSpaceDelimiters = new HashSet<>(Arrays.asList(
-            ' ',
-            '\n',
-            '\r',
-            '\t'
-    ));
-
     /**
      * Create an instance of the Tokenizer and try to create a Buffered
      * Reader pointing to the filePath specified.
@@ -157,9 +150,8 @@ public class Tokenizer {
      * @exception EOFException throw EOF exception if the end of the file has been reached unexpectedly
      */
     private void stripWhiteSpaceAndComments() throws EOFException {
-        HashSet<Character> detectChars = new HashSet<>(Arrays.asList(' ', '\t', '\n', '/', '\r'));
         // while comments or white space need to be removed loop.
-        while (detectChars.contains((char)this.peek()) && this.peek() != -1) {
+        while ((Character.isWhitespace(this.peek()) || this.peek() == '/') && this.peek() != -1) {
             // strip comments /** or /!* only stopping when */ or EOF reached
             if (this.peek() == '/' && (this.peek(2) == '*' || this.peek(2) == '!')) {
                 while((this.peek() != '*' || this.peek(2) != '/')) {
@@ -254,7 +246,7 @@ public class Tokenizer {
      */
     private boolean detectDelimiter(int c, boolean isStringConstant) {
         return isStringConstant ? c != '"' :
-                !whiteSpaceDelimiters.contains((char)c) && !symbols.contains((char)c);
+                !Character.isWhitespace(c) && !symbols.contains((char)c);
     }
 
     /**

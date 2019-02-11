@@ -1,5 +1,5 @@
 /** Hello world program example */
-/!* /
+/!* */
 // Hello
 class Main {
     function void main () {
