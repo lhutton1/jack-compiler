@@ -1,4 +1,6 @@
-package com.lexer;
+package com;
+
+import com.Token;
 
 import java.io.*;
 import java.util.HashSet;
@@ -62,7 +64,7 @@ public class Tokenizer {
      * Reader pointing to the filePath specified.
      * @param filePath file path to read file from
      */
-    Tokenizer(String filePath) throws IllegalArgumentException {
+    public Tokenizer(String filePath) throws IllegalArgumentException {
         File file;
         lineNumber = 1;
         this.peeked = false;
@@ -93,7 +95,7 @@ public class Tokenizer {
         String extension = "";
         int i = filePath.lastIndexOf('.');
         if (i >= 0)
-            extension = filePath.substring(i+1);
+            extension = filePath.substring(i + 1);
         return extension;
     }
 
@@ -218,10 +220,16 @@ public class Tokenizer {
      */
     private String getMultiCharacterLexeme(int currentCharacter, boolean isStringConstant) throws EOFException {
         int c = currentCharacter;
+        boolean isIntegerToken = false;
         StringBuilder lexeme = new StringBuilder();
 
+        // if the current character is an integer then we need to
+        // make sure that a letter placed after it is separated into a new token.
+        if (Character.isDigit(c))
+            isIntegerToken = true;
+
         // iterate until delimiter found
-        while (detectDelimiter((char)this.peek(), isStringConstant)) {
+        while (detectDelimiter((char)this.peek(), isStringConstant, isIntegerToken)) {
             // ending string literal not found before EOF
             if ((c == -1 || c == 65535) && isStringConstant)
                 throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning string literal");
@@ -242,29 +250,40 @@ public class Tokenizer {
      * detected or an identifier/keyword.
      * @param c the current character
      * @param isStringConstant determine whether to look for '"' or whitespace and symbols
+     * @param isIntegerToken determine if a character placed after integer is valid
      * @return false if end of statement has not been reached
      */
-    private boolean detectDelimiter(int c, boolean isStringConstant) {
-        return isStringConstant ? c != '"' :
-                !Character.isWhitespace(c) && !symbols.contains((char)c);
+    private boolean detectDelimiter(int c, boolean isStringConstant, boolean isIntegerToken) {
+        if (isIntegerToken)
+            return !Character.isWhitespace(c) && !symbols.contains((char)c) && !Character.isLetter(c);
+        else if (isStringConstant)
+            return c != '"';
+        else
+            return !Character.isWhitespace(c) && !symbols.contains((char)c);
     }
 
     /**
      * Get the next token by reading the next values in the input stream.
      * @return Token
-     * @throws EOFException if the end of the file is reached
+     * @throws IOException if the end of the file is reached, or problem with buffered reader
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      */
-    Token getNextToken() throws IllegalArgumentException, EOFException {
+    Token getNextToken() throws IllegalArgumentException, IOException {
         int c;
         Token t;
+
+        if (this.peeked) {
+            this.peeked = false;
+            return this.previousToken;
+        }
 
         this.stripWhiteSpaceAndComments();
         c = this.read();
 
-        if (c == -1) // check if EOF token
+        if (c == -1) { // check if EOF token
             t = createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
-        else if (c == '"') { // Check if string literal token
+            this.br.close();
+        } else if (c == '"') { // Check if string literal token
             c = this.read();
             t = createToken(getMultiCharacterLexeme(c, true), Token.TokenTypes.stringConstant);
             this.read(); // discard last '"'
@@ -295,9 +314,9 @@ public class Tokenizer {
      * reading ahead to the next token.
      * @return The next token.
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
-     * @throws EOFException if the end of the file is reached
+     * @throws IOException if the end of the file is reached, or problem with buffered reader
      */
-    Token peekNextToken() throws IllegalArgumentException, EOFException {
+    Token peekNextToken() throws IllegalArgumentException, IOException {
         if (this.peeked)
             return this.previousToken;
 
