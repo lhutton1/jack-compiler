@@ -10,14 +10,8 @@ public class Tokenizer_test {
         Tokenizer t = new Tokenizer("in/helloworld.jack");
         Token token;
 
-        System.out.println(t.peekNextToken());
-        System.out.println(t.getNextToken());
-        System.out.println(t.getNextToken());
-        System.out.println(t.peekNextToken());
-        System.out.println(t.peekNextToken());
-
-//        while ((token = t.getNextToken()).type != Token.TokenTypes.EOF) {
-//            System.out.println(token);
-//        }
+        while ((token = t.getNextToken()).type != Token.TokenTypes.EOF) {
+            System.out.println(token);
+        }
     }
 }
