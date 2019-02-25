@@ -74,4 +74,8 @@ public class XMLWriter {
         parent.appendChild(e);
         return e;
     }
+
+    public Element getRootElement() {
+        return this.root;
+    }
 }
