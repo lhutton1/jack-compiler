@@ -1,2 +1,6 @@
-// Reduces this fraction.
-let numerator = numerator / g;
+class Main {
+   // Reduces this fraction.
+      method void reduce() {
+         let sum = (numerator * other.getDenominator()) + (other.getNumerator() * denominator);
+      }
+}
