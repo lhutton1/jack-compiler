@@ -615,6 +615,9 @@ public class Parser {
 
         parseExpressionList();
 
+        // restore previous parent
+        this.parent = elmtParent;
+
         token = this.t.getNextToken();
         if (!token.lexeme.equals(")"))
             throw new IOException("Error, line: " + token.lineNumber + ", Expected ). Got: " + token.lexeme);
@@ -663,6 +666,9 @@ public class Parser {
 
         while (this.t.peekNextToken().lexeme.equals("&")
                 || this.t.peekNextToken().lexeme.equals("|")) {
+            // restore previous parent
+            this.parent = elmtParent;
+
             token = this.t.getNextToken();
 
             // look for & or |
@@ -695,6 +701,9 @@ public class Parser {
         while (this.t.peekNextToken().lexeme.equals("=")
                 || this.t.peekNextToken().lexeme.equals(">")
                 || this.t.peekNextToken().lexeme.equals("<")) {
+            // restore previous parent
+            this.parent = elmtParent;
+
             token = this.t.getNextToken();
 
             // look for =, <, >
