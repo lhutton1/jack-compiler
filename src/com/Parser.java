@@ -182,6 +182,8 @@ public class Parser {
         ASTNode elmtParent = parent.addChild(newASTNode("subroutineDeclaration", ""));
         this.parent = elmtParent;
 
+        System.out.println(token);
+
         // look for function keyword
         if (!token.lexeme.equals("constructor") && !token.lexeme.equals("function") && !token.lexeme.equals("method"))
             throw new IOException("Error, line: " + token.lineNumber + ", Expected function declaration. Got: " + token.lexeme);
@@ -190,8 +192,8 @@ public class Parser {
 
         // look for type/void keyword
         if (this.t.peekNextToken().lexeme.equals("void")) {
+            token = this.t.getNextToken();
             parent.addChild(newASTNode("keyword", token.lexeme));
-            this.t.getNextToken();
         } else {
             parseType();
         }
@@ -212,6 +214,9 @@ public class Parser {
         // look for parameters
         if (!this.t.peekNextToken().lexeme.equals(")"))
             parseParamList();
+
+        // restore previous parent
+        this.parent = elmtParent;
 
         token = this.t.getNextToken();
         if (!token.lexeme.equals(")"))
@@ -325,6 +330,11 @@ public class Parser {
         Token token = this.t.getNextToken();
         ASTNode elmtParent = parent.addChild(newASTNode("variableDeclaration", ""));
         this.parent = elmtParent;
+
+        if (!token.lexeme.equals("var"))
+            throw new IOException("Error, line: " + token.lineNumber + ", Expected var keyword. Got: " + token.lexeme);
+        else
+            parent.addChild(newASTNode("keyword", "var"));
 
         parseType();
         parseIdentifier();
@@ -628,17 +638,21 @@ public class Parser {
      */
     private void parseExpressionList() throws IOException {
         Token token;
-        ASTNode elmtParent = parent.addChild(newASTNode("subroutineCall", ""));
+        ASTNode elmtParent = parent.addChild(newASTNode("expressionList", ""));
         this.parent = elmtParent;
 
         if (!this.t.peekNextToken().lexeme.equals(")")) {
             parseExpression();
 
-            while (!this.t.peekNextToken().lexeme.equals(")")) {
+            while (this.t.peekNextToken().lexeme.equals(",")) {
+                // restore previous parent
+                this.parent = elmtParent;
+
+                parent.addChild(newASTNode("symbol", ","));
+                this.t.getNextToken();
                 parseExpression();
             }
         }
-
         // restore previous parent
         this.parent = elmtParent;
     }
@@ -763,6 +777,7 @@ public class Parser {
                 throw new IOException("Error, line: " + token.lineNumber + ", Expected * or /. Got: " + token.lexeme);
 
             // parse factor
+            this.t.getNextToken();
             parseFactor();
         }
         // restore previous parent
@@ -799,8 +814,11 @@ public class Parser {
      */
     private void parseOperand() throws IOException {
         Token token = this.t.getNextToken();
-        ASTNode elmtParent = parent.addChild(newASTNode("term", ""));
+        ASTNode elmtParent = parent.addChild(newASTNode("operand", ""));
         this.parent = elmtParent;
+
+        System.out.println(token);
+        System.out.println(this.t.peekNextToken());
 
         if (token.type == Token.TokenTypes.integer)
             parent.addChild(newASTNode("integerConstant", token.lexeme));
@@ -834,7 +852,11 @@ public class Parser {
                     parent.addChild(newASTNode("symbol", "("));
                     parseExpressionList();
 
+                    // restore previous parent
+                    this.parent = elmtParent;
+
                     token = this.t.getNextToken();
+
                     if (!token.lexeme.equals(")"))
                         throw new IOException("Error, line: " + token.lineNumber + ", Expected ')'. Got: " + token.lexeme);
                     else
@@ -846,7 +868,6 @@ public class Parser {
 
             parseExpression();
 
-            this.t.getNextToken();
             if (!token.lexeme.equals(")"))
                 throw new IOException("Error, line: " + token.lineNumber + ", Expected ')'. Got: " + token.lexeme);
             else
@@ -861,6 +882,9 @@ public class Parser {
             parent.addChild(newASTNode("keyword", token.lexeme));
         else if (token.lexeme.equals("this"))
             parent.addChild(newASTNode("keyword", token.lexeme));
+
+        // restore previous parent
+        this.parent = elmtParent;
     }
 
     /**

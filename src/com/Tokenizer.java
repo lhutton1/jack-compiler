@@ -153,7 +153,7 @@ public class Tokenizer {
      */
     private void stripWhiteSpaceAndComments() throws EOFException {
         // while comments or white space need to be removed loop.
-        while ((Character.isWhitespace(this.peek()) || this.peek() == '/') && this.peek() != -1) {
+        while (true) {
             // strip comments /** or /!* only stopping when */ or EOF reached
             if (this.peek() == '/' && (this.peek(2) == '*' || this.peek(2) == '!')) {
                 while((this.peek() != '*' || this.peek(2) != '/')) {
@@ -161,6 +161,7 @@ public class Tokenizer {
                         throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning multiline comment");
                     this.read();
                 }
+                this.read();
                 this.read();
 
             // strip comments // only stopping when new line or EOF reached
@@ -170,8 +171,10 @@ public class Tokenizer {
                 }
 
             // remove white space characters
-            } else {
+            } else if (Character.isWhitespace(this.peek())) {
                 this.read();
+            } else {
+                break;
             }
         }
     }

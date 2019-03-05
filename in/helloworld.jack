@@ -1,8 +1,2 @@
-/** Hello world program example */
-/!* */
-// Hello
-class Main {
-    function void main () {
-        let g = Fraction.gcd(numerator, denominator);
-    }
-}
+// Reduces this fraction.
+let numerator = numerator / g;
