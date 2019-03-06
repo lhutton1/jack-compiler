@@ -22,7 +22,7 @@ public class XMLWriter {
             dom = db.newDocument();
 
             // create the root now since we will need it
-            root = dom.createElement("JackProgram");
+            root = dom.createElement("jackProgram");
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         }
