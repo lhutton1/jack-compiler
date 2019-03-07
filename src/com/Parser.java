@@ -212,7 +212,6 @@ public class Parser {
             this.t.getNextToken();
             parseExpression();
             parseSymbol("]");
-            this.t.getNextToken();
         }
         parseSymbol("=");
         parseExpression();
