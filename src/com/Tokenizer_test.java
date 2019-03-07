@@ -1,8 +1,5 @@
 package com;
 
-import com.Token;
-import com.Tokenizer;
-
 import java.io.IOException;
 
 public class Tokenizer_test {
