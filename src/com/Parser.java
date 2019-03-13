@@ -4,6 +4,7 @@ import java.io.IOException;
 
 public class Parser {
     private Tokenizer t;
+    private SymbolTable s;
 
     /**
      * Create a new instance of the parser. This takes a stream of tokens from the
@@ -15,11 +16,13 @@ public class Parser {
      */
     public Parser(String filePath) throws IOException, ParserException {
         this.t = new Tokenizer(filePath);
+        this.s = new SymbolTable();
 
         while (this.t.peekNextToken().type != Token.TokenTypes.EOF)
             this.parseClass();
 
         System.out.println("There are no syntax errors");
+        this.s.printTables();
     }
 
     /**
@@ -30,6 +33,7 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseClass() throws ParserException, IOException {
+        this.s.startNewClass();
         parseKeyword("class");
         parseIdentifier();
         parseSymbol("{");
@@ -71,7 +75,8 @@ public class Parser {
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
 
-        parseVariableDeclaration();
+        parseVariableDeclaration(false, token.lexeme);
+        parseSymbol(";");
     }
 
     /**
@@ -80,13 +85,16 @@ public class Parser {
      *
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @return String, the type that has been detected.
      */
-    private void parseType() throws ParserException, IOException {
+    private String parseType() throws ParserException, IOException {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals("int") && !token.lexeme.equals("char")
                 && !token.lexeme.equals("boolean") && token.type != Token.TokenTypes.identifier)
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected type declaration. Got: " + token.lexeme);
+
+        return token.lexeme;
     }
 
     /**
@@ -98,6 +106,7 @@ public class Parser {
      */
     private void parseSubRoutineDeclaration() throws ParserException, IOException {
         Token token = this.t.getNextToken();
+        this.s.startNewMethod();
 
         if (!token.lexeme.equals("constructor") && !token.lexeme.equals("function") && !token.lexeme.equals("method"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected function declaration. Got: " + token.lexeme);
@@ -109,10 +118,7 @@ public class Parser {
 
         parseIdentifier();
         parseSymbol("(");
-
-        if (!this.t.peekNextToken().lexeme.equals(")"))
-            parseParamList();
-
+        parseParamList();
         parseSymbol(")");
         parseSubroutineBody();
     }
@@ -125,13 +131,14 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseParamList() throws ParserException, IOException {
-        parseType();
-        parseIdentifier();
+        if (this.t.peekNextToken().lexeme.equals(")"))
+            return;
+
+        parseVariableDeclaration(true, "argument");
 
         while ((this.t.peekNextToken()).lexeme.equals(",")) {
             this.t.getNextToken();
-            parseType();
-            parseIdentifier();
+            parseVariableDeclaration(true, "argument");
         }
     }
 
@@ -194,7 +201,8 @@ public class Parser {
      */
     private void parseVarDeclarStatement() throws ParserException, IOException {
         parseKeyword("var");
-        parseVariableDeclaration();
+        parseVariableDeclaration(false, "var");
+        parseSymbol(";");
     }
 
     /**
@@ -508,28 +516,38 @@ public class Parser {
      *
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @return String, the identifier name.
      */
-    private void parseIdentifier() throws ParserException, IOException {
+    private String parseIdentifier() throws ParserException, IOException {
         Token token = this.t.getNextToken();
         if (token.type != Token.TokenTypes.identifier)
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + token.lexeme);
+
+        return token.lexeme;
     }
 
     /**
      * Parse a variable declaration.
+     * Within this method we also need to update the symbol table to be able to determine in the future
+     * whether a variable has previously been declared.
      *
+     * @param enforcedTypes whether to continue searching for more identifiers or just detect a single identifier.
+     * @param kind the kind of the variable i.e. static, field, argument, var .
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVariableDeclaration() throws ParserException, IOException {
-        parseType();
-        parseIdentifier();
+    private void parseVariableDeclaration(boolean enforcedTypes, String kind) throws ParserException, IOException {
+        String type = parseType();
+        String identifier = parseIdentifier();
+        this.s.addSymbol(identifier, type, kind);
 
-        while (this.t.peekNextToken().lexeme.equals(",")) {
-            this.t.getNextToken();
-            parseIdentifier();
+        if (!enforcedTypes) {
+            while (this.t.peekNextToken().lexeme.equals(",")) {
+                this.t.getNextToken();
+                identifier = parseIdentifier();
+                this.s.addSymbol(identifier, type, kind);
+            }
         }
-        parseSymbol(";");
     }
 
     /**
