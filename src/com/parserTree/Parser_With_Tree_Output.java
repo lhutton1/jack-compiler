@@ -1,4 +1,8 @@
-package com;
+package com.parserTree;
+
+import com.ParserException;
+import com.Token;
+import com.Tokenizer;
 
 import java.io.IOException;
 

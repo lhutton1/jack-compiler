@@ -1,4 +1,7 @@
-package com;
+package com.test;
+
+import com.Token;
+import com.Tokenizer;
 
 import java.io.IOException;
 

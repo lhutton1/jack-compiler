@@ -1,4 +1,7 @@
-package com;
+package com.test;
+
+import com.Parser;
+import com.ParserException;
 
 import java.io.IOException;
 

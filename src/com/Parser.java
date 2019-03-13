@@ -13,7 +13,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    Parser(String filePath) throws IOException, ParserException {
+    public Parser(String filePath) throws IOException, ParserException {
         this.t = new Tokenizer(filePath);
 
         while (this.t.peekNextToken().type != Token.TokenTypes.EOF)

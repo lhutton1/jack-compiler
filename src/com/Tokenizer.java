@@ -272,7 +272,7 @@ public class Tokenizer {
      * @throws IOException if the end of the file is reached, or problem with buffered reader
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      */
-    Token getNextToken() throws IllegalArgumentException, IOException {
+    public Token getNextToken() throws IllegalArgumentException, IOException {
         int c;
         Token t;
 
@@ -320,7 +320,7 @@ public class Tokenizer {
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      * @throws IOException if the end of the file is reached, or problem with buffered reader
      */
-    Token peekNextToken() throws IllegalArgumentException, IOException {
+    public Token peekNextToken() throws IllegalArgumentException, IOException {
         if (this.peeked)
             return this.previousToken;
 

@@ -1,6 +1,7 @@
-package com;
+package com.parserTree;
 
 import java.util.LinkedList;
+
 import org.w3c.dom.*;
 
 public class ASTNode {
