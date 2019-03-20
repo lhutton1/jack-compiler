@@ -15,7 +15,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    public Parser(String filePath) throws IOException, ParserException {
+    public Parser(String filePath) throws IOException, ParserException, SemanticException {
         this.t = new Tokenizer(filePath);
         this.globalSymbolTable = new SymbolTable();
         this.currentSymbolTable = this.globalSymbolTable;
@@ -34,7 +34,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseClass() throws ParserException, IOException {
+    private void parseClass() throws ParserException, SemanticException, IOException {
         parseKeyword("class");
         String identifier = parseIdentifier();
         this.currentSymbolTable = this.globalSymbolTable.addSymbol(identifier, "class", Symbol.KindTypes.CLASS, true);
@@ -56,7 +56,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseMemberDeclaration() throws ParserException, IOException {
+    private void parseMemberDeclaration() throws ParserException, SemanticException, IOException {
         Token token = this.t.peekNextToken();
 
         if (token.lexeme.equals("static") || token.lexeme.equals("field"))
@@ -74,7 +74,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseClassVarDeclaration() throws ParserException, IOException {
+    private void parseClassVarDeclaration() throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
@@ -92,7 +92,7 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the type that has been detected.
      */
-    private String parseType() throws ParserException, IOException {
+    private String parseType() throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals("int") && !token.lexeme.equals("char")
@@ -109,7 +109,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSubRoutineDeclaration() throws ParserException, IOException {
+    private void parseSubRoutineDeclaration() throws ParserException, SemanticException, IOException {
         String name, type;
         boolean isConstructor = false;
         Token token = this.t.getNextToken();
@@ -148,7 +148,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseParamList() throws ParserException, IOException {
+    private void parseParamList() throws ParserException, SemanticException, IOException {
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
@@ -167,7 +167,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSubroutineBody() throws ParserException, IOException {
+    private void parseSubroutineBody() throws ParserException, SemanticException, IOException {
         parseSymbol("{");
 
         while (!this.t.peekNextToken().lexeme.equals("}")) {
@@ -183,7 +183,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseStatement() throws ParserException, IOException {
+    private void parseStatement() throws ParserException, SemanticException, IOException {
         Token token = this.t.peekNextToken();
 
         switch (token.lexeme) {
@@ -217,7 +217,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVarDeclarStatement() throws ParserException, IOException {
+    private void parseVarDeclarStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("var");
         parseVariableDeclaration(false, false, false, "var");
         parseSymbol(";");
@@ -230,7 +230,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseLetStatement() throws ParserException, IOException {
+    private void parseLetStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("let");
         String name = parseIdentifier(true, false);
 
@@ -254,7 +254,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseIfStatement() throws ParserException, IOException {
+    private void parseIfStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("if");
         parseSymbol("(");
         parseExpression();
@@ -278,7 +278,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseWhileStatement() throws ParserException, IOException {
+    private void parseWhileStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("while");
         parseSymbol("(");
         parseExpression();
@@ -295,7 +295,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseDoStatement() throws ParserException, IOException {
+    private void parseDoStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("do");
         parseSubroutineCall();
         parseSymbol(";");
@@ -307,7 +307,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseReturnStatement() throws ParserException, IOException {
+    private void parseReturnStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("return");
 
         if (!this.t.peekNextToken().lexeme.equals(";"))
@@ -323,7 +323,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSubroutineCall() throws ParserException, IOException {
+    private void parseSubroutineCall() throws ParserException, SemanticException, IOException {
         parseIdentifier();
         if (this.t.peekNextToken().lexeme.equals(".")) {
             this.t.getNextToken();
@@ -342,7 +342,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseExpressionList() throws ParserException, IOException {
+    private void parseExpressionList() throws ParserException, SemanticException, IOException {
         if (!this.t.peekNextToken().lexeme.equals(")")) {
             parseExpression();
 
@@ -360,7 +360,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseExpression() throws ParserException, IOException {
+    private void parseExpression() throws ParserException, SemanticException, IOException {
         Token token;
         parseRelationalExpression();
 
@@ -382,7 +382,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseRelationalExpression() throws ParserException, IOException {
+    private void parseRelationalExpression() throws ParserException, SemanticException, IOException {
         Token token;
         parseArithmeticExpression();
 
@@ -405,7 +405,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseArithmeticExpression() throws ParserException, IOException {
+    private void parseArithmeticExpression() throws ParserException, SemanticException, IOException {
         Token token;
         parseTerm();
 
@@ -427,7 +427,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseTerm() throws ParserException, IOException {
+    private void parseTerm() throws ParserException, SemanticException, IOException {
         Token token;
         parseFactor();
 
@@ -449,7 +449,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseFactor() throws ParserException, IOException {
+    private void parseFactor() throws ParserException, SemanticException, IOException {
         if (this.t.peekNextToken().lexeme.equals("-") || this.t.peekNextToken().lexeme.equals("~"))
             this.t.getNextToken();
 
@@ -463,7 +463,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseOperand() throws ParserException, IOException {
+    private void parseOperand() throws ParserException, SemanticException, IOException {
         Token token = this.t.peekNextToken();
 
         // if integerConstant, stringLiteral, true, false, null, this
@@ -517,7 +517,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSymbol(String symbol) throws ParserException, IOException {
+    private void parseSymbol(String symbol) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(symbol))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + symbol + ". Got: " + token.lexeme);
@@ -530,7 +530,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseKeyword(String keyword) throws ParserException, IOException {
+    private void parseKeyword(String keyword) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(keyword))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + keyword + "keyword. Got: " + token.lexeme);
@@ -543,7 +543,7 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the identifier name.
      */
-    private String parseIdentifier() throws ParserException, IOException {
+    private String parseIdentifier() throws ParserException, SemanticException, IOException {
         return parseIdentifier(false, false);
     }
 
@@ -555,16 +555,16 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the identifier name.
      */
-    private String parseIdentifier(boolean declaredCheck, boolean inizializedCheck) throws ParserException, IOException {
+    private String parseIdentifier(boolean declaredCheck, boolean inizializedCheck) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         String name = token.lexeme;
 
         if (token.type != Token.TokenTypes.identifier)
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + name);
         else if (declaredCheck && (!this.currentSymbolTable.globalContains(name) || name.equals("Output") || name.equals("Math") || name.equals("Memory")))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Identifier " + name + " used without previously declaring.");
+            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + name + " used without previously declaring.");
         else if (inizializedCheck && this.currentSymbolTable.globalContains(name) && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized())
-            throw new ParserException("Error, line: " + token.lineNumber + ", Identifier " + token.lexeme + " used before being initialized.");
+            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + token.lexeme + " used before being initialized.");
 
 
         return token.lexeme;
@@ -581,13 +581,13 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean checkGlobalScope, boolean isInitialized, String kind) throws ParserException, IOException {
+    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean checkGlobalScope, boolean isInitialized, String kind) throws ParserException, SemanticException, IOException {
         String type = parseType();
         String name = parseIdentifier();
 
         // check for redeclaration
         if (this.currentSymbolTable.contains(name))
-            throw new ParserException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + name);
+            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + name);
 
         this.currentSymbolTable.addSymbol(name, type, kind, isInitialized);
 
@@ -606,7 +606,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseStatementBody() throws ParserException, IOException {
+    private void parseStatementBody() throws ParserException, SemanticException, IOException {
         if (!this.t.peekNextToken().lexeme.equals("}")) {
             while (!this.t.peekNextToken().lexeme.equals("}")) {
                 parseStatement();
