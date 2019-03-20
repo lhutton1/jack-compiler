@@ -8,29 +8,50 @@ public class SymbolTable {
     private SymbolTable parent;
     private int index;
 
+    /**
+     * Initialise a symbol table with no parent.
+     */
     public SymbolTable() {
         this(null);
     }
 
+
+    /**
+     * Initialise a new symbol table with a parent.
+     * @param parent the parent symbol table, to keep track of the tree.
+     */
     public SymbolTable(SymbolTable parent) {
         this.symbol = new HashMap<>();
         this.parent = parent;
         this.index = 0;
     }
 
-    public SymbolTable addSymbol(String name, String type, Symbol.KindTypes kind) {
-        if (kind == Symbol.KindTypes.PROCEDURE || kind == Symbol.KindTypes.CLASS) {
+
+    /**
+     * Add a new symbol to the symbol table.
+     * @param name the name of the symbol (identifier)
+     * @param type the type of the symbol (i.e. the object/type that it returns or stores)
+     * @param kind the kind of symbol (i.e. var, argument, static, field, subroutine, class)
+     * @param initialized whether or not the symbol has been initialized.
+     * @return the symbol table that has been created if needed.
+     */
+    public SymbolTable addSymbol(String name, String type, Symbol.KindTypes kind, boolean initialized) {
+        if (kind == Symbol.KindTypes.SUBROUTINE || kind == Symbol.KindTypes.CLASS) {
             SymbolTable child = new SymbolTable(this);
-            symbol.put(name, new Symbol(name, type, kind, index++, child));
+            symbol.put(name, new Symbol(name, type, kind, index++, initialized, child));
             return child;
         }
 
         // if child symbol table doesn't need creating
-        symbol.put(name, new Symbol(name, type, kind, index++));
+        symbol.put(name, new Symbol(name, type, kind, index++, initialized));
         return null;
     }
 
-    public SymbolTable addSymbol(String name, String type, String kind) {
+
+    /**
+     * Add a symbol given a string as the kind.
+     */
+    public SymbolTable addSymbol(String name, String type, String kind, boolean initialized) {
         Symbol.KindTypes enumKind;
 
         switch(kind) {
@@ -50,37 +71,92 @@ public class SymbolTable {
                 enumKind = Symbol.KindTypes.CLASS;
                 break;
             case "procedure":
-                enumKind = Symbol.KindTypes.PROCEDURE;
+                enumKind = Symbol.KindTypes.SUBROUTINE;
                 break;
             default:
                 enumKind = null;
                 break;
         }
-        return addSymbol(name, type, enumKind);
+        return addSymbol(name, type, enumKind, initialized);
     }
 
+
+    /**
+     * Check if the symbol table contains the provided identifier locally.
+     * @param name the name of the symbol.
+     * @return boolean, whether the symbol table contains the symbol.
+     */
     public boolean contains(String name) {
-        return this.symbol.containsKey(name);
+            return this.symbol.containsKey(name);
     }
 
+
+    /**
+     * Check if the current symbol table or and parents contain the identifier.
+     * @param name the name of the symbol.
+     * @return boolean, whether the symbol is contained by the current symbol table or any
+     * higher up in the hierarchy.
+     */
+    public boolean globalContains(String name) {
+        return this.getGlobalSymbol(name) != null;
+    }
+
+    public Symbol getSymbol(String name) {
+        if (this.contains(name))
+            return this.symbol.get(name);
+
+        return null;
+    }
+
+    public Symbol getGlobalSymbol(String name) {
+        SymbolTable currentTable = this;
+
+        // search hierarchy
+        do {
+            if (currentTable.contains(name))
+                return currentTable.getSymbol(name);
+            currentTable = currentTable.parent;
+        } while (currentTable != null);
+
+        return null;
+    }
+
+    /**
+     * restore the parent symbol table.
+     * @return parent symbol table
+     */
     public SymbolTable restoreParent() {
         return this.parent;
     }
 
+
+    /**
+     * Print the symbol table by listing each symbol it contains.
+     */
     public void printTable() {
         for (Map.Entry<String, Symbol> s : symbol.entrySet()) {
             System.out.println(s.getValue());
         }
     }
 
+    /**
+     * Print every symbol table below the current in the hierarchy.
+     */
     public void printTables() {
-        for (Map.Entry<String, Symbol> s : symbol.entrySet()) {
-            System.out.println(s.getValue());
+        printTables("");
+    }
 
-            if (s.getValue().getKind() == Symbol.KindTypes.CLASS || s.getValue().getKind() == Symbol.KindTypes.PROCEDURE) {
-                System.out.println("enter");
-                s.getValue().getChildSymbolTable().printTables();
-                System.out.println("exit");
+
+    /**
+     * Print every symbol table below the current in the hierarchy.
+     * @param spacing the amount of spacing before each symbol listing.
+     */
+    private void printTables(String spacing) {
+        for (Map.Entry<String, Symbol> s : symbol.entrySet()) {
+            System.out.println(spacing + s.getValue());
+
+            if (s.getValue().getKind() == Symbol.KindTypes.CLASS || s.getValue().getKind() == Symbol.KindTypes.SUBROUTINE) {
+                s.getValue().getChildSymbolTable().printTables(spacing + "    ");
             }
         }
     }

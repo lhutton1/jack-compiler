@@ -6,26 +6,41 @@ public class Symbol {
     private KindTypes kind;
     private SymbolTable childSymbolTable;
     private int index;
+    private boolean initialized;
 
     public enum KindTypes {
         STATIC,
         FIELD,
         VAR,
         ARGUMENT,
-        PROCEDURE,
+        SUBROUTINE,
         CLASS
     }
 
-    public Symbol(String name, String type, KindTypes kind, int index, SymbolTable childSymbolTable) {
+
+    /**
+     * Create a new symbol.
+     * @param name name of the symbol.
+     * @param type type that the symbol stores/returns.
+     * @param kind the kind of symbol.
+     * @param index the index that the symbol is placed at.
+     * @param initialized whether the symbol is initialized
+     * @param childSymbolTable the child symbol table if it's kind is class or subroutine.
+     */
+    public Symbol(String name, String type, KindTypes kind, int index, boolean initialized, SymbolTable childSymbolTable) {
         this.name = name;
         this.type = type;
         this.kind = kind;
         this.index = index;
         this.childSymbolTable = childSymbolTable;
+        this.initialized = initialized;
     }
 
-    public Symbol(String name, String type, KindTypes kind, int index) {
-        this(name, type, kind, index, null);
+    /**
+     * Allow creation of a symbol if no child is needed
+     */
+    public Symbol(String name, String type, KindTypes kind, int index, boolean initialized) {
+        this(name, type, kind, index, initialized, null);
     }
 
     public String getName() { return this.name; }
@@ -33,8 +48,16 @@ public class Symbol {
     public KindTypes getKind() { return this.kind; }
     public SymbolTable getChildSymbolTable() { return this.childSymbolTable; }
 
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    public void setInitialized(boolean initialized) {
+        this.initialized = initialized;
+    }
+
     @Override
     public String toString() {
-        return "<Symbol " + name + ", " + type + ", " + kind + ", " + index + ", " + childSymbolTable + ">";
+        return "<Symbol " + name + ", " + type + ", " + kind + ", " + index + ", " + childSymbolTable + ", " + initialized +">";
     }
 }

@@ -37,7 +37,7 @@ public class Parser {
     private void parseClass() throws ParserException, IOException {
         parseKeyword("class");
         String identifier = parseIdentifier();
-        this.currentSymbolTable = this.globalSymbolTable.addSymbol(identifier, "class", Symbol.KindTypes.CLASS);
+        this.currentSymbolTable = this.globalSymbolTable.addSymbol(identifier, "class", Symbol.KindTypes.CLASS, true);
         parseSymbol("{");
 
         while (!this.t.peekNextToken().lexeme.equals("}"))
@@ -80,7 +80,7 @@ public class Parser {
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
 
-        parseVariableDeclaration(false, true, token.lexeme);
+        parseVariableDeclaration(false, true, false, token.lexeme);
         parseSymbol(";");
     }
 
@@ -130,7 +130,7 @@ public class Parser {
         if (this.currentSymbolTable.contains(name))
             throw new ParserException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + name);
         else
-            this.currentSymbolTable = this.currentSymbolTable.addSymbol(name, type, Symbol.KindTypes.PROCEDURE);
+            this.currentSymbolTable = this.currentSymbolTable.addSymbol(name, type, Symbol.KindTypes.SUBROUTINE, true);
 
         parseSymbol("(");
         parseParamList();
@@ -152,11 +152,11 @@ public class Parser {
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
-        parseVariableDeclaration(true, false, "argument");
+        parseVariableDeclaration(true, false, true, "argument");
 
         while ((this.t.peekNextToken()).lexeme.equals(",")) {
             this.t.getNextToken();
-            parseVariableDeclaration(true, false,"argument");
+            parseVariableDeclaration(true, false, true, "argument");
         }
     }
 
@@ -219,7 +219,7 @@ public class Parser {
      */
     private void parseVarDeclarStatement() throws ParserException, IOException {
         parseKeyword("var");
-        parseVariableDeclaration(false, false, "var");
+        parseVariableDeclaration(false, false, false, "var");
         parseSymbol(";");
     }
 
@@ -232,7 +232,10 @@ public class Parser {
      */
     private void parseLetStatement() throws ParserException, IOException {
         parseKeyword("let");
-        parseIdentifier(true);
+        String name = parseIdentifier(true, false);
+
+        // variable has been initialised
+        this.currentSymbolTable.getGlobalSymbol(name).setInitialized(true);
 
         if (this.t.peekNextToken().lexeme.equals("[")) {
             this.t.getNextToken();
@@ -472,11 +475,11 @@ public class Parser {
 
             // if identifier
         } if (token.type == Token.TokenTypes.identifier) {
-            parseIdentifier();
+            parseIdentifier(true, true);
 
             if (this.t.peekNextToken().lexeme.equals(".")) {
                 this.t.getNextToken();
-                parseIdentifier();
+                parseIdentifier(true, true);
             }
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
@@ -541,7 +544,7 @@ public class Parser {
      * @return String, the identifier name.
      */
     private String parseIdentifier() throws ParserException, IOException {
-        return parseIdentifier(false);
+        return parseIdentifier(false, false);
     }
 
     /**
@@ -552,12 +555,17 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the identifier name.
      */
-    private String parseIdentifier(boolean declaredCheck) throws ParserException, IOException {
+    private String parseIdentifier(boolean declaredCheck, boolean inizializedCheck) throws ParserException, IOException {
         Token token = this.t.getNextToken();
+        String name = token.lexeme;
+
         if (token.type != Token.TokenTypes.identifier)
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + token.lexeme);
-        //else if (declaredCheck && this.s.getSymbol(token.lexeme) == null)
-        //    throw new ParserException("Error, line: " + token.lineNumber + ", Identifier " + token.lexeme + " used without previously declaring.");
+            throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + name);
+        else if (declaredCheck && (!this.currentSymbolTable.globalContains(name) || name.equals("Output") || name.equals("Math") || name.equals("Memory")))
+            throw new ParserException("Error, line: " + token.lineNumber + ", Identifier " + name + " used without previously declaring.");
+        else if (inizializedCheck && this.currentSymbolTable.globalContains(name) && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized())
+            throw new ParserException("Error, line: " + token.lineNumber + ", Identifier " + token.lexeme + " used before being initialized.");
+
 
         return token.lexeme;
     }
@@ -573,7 +581,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean checkGlobalScope, String kind) throws ParserException, IOException {
+    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean checkGlobalScope, boolean isInitialized, String kind) throws ParserException, IOException {
         String type = parseType();
         String name = parseIdentifier();
 
@@ -581,13 +589,13 @@ public class Parser {
         if (this.currentSymbolTable.contains(name))
             throw new ParserException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + name);
 
-        this.currentSymbolTable.addSymbol(name, type, kind);
+        this.currentSymbolTable.addSymbol(name, type, kind, isInitialized);
 
         if (!singleIdentifierOnly) {
             while (this.t.peekNextToken().lexeme.equals(",")) {
                 this.t.getNextToken();
                 name = parseIdentifier();
-                this.currentSymbolTable.addSymbol(name, type, kind);
+                this.currentSymbolTable.addSymbol(name, type, kind, isInitialized);
             }
         }
     }
