@@ -1,5 +1,7 @@
 class Main {
-    constructor Main new(int x, int y) {
-        let z = x + y;
-    }
+
+}
+
+class Hello {
+
 }
