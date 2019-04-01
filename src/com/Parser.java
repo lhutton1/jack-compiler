@@ -91,7 +91,7 @@ public class Parser {
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
 
-        parseVariableDeclaration(false, true, token.lexeme);
+        parseVariableDeclaration(false, false, token.lexeme);
         parseSymbol(";");
     }
 
@@ -163,11 +163,11 @@ public class Parser {
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
-        parseVariableDeclaration(true, false, "argument");
+        parseVariableDeclaration(true, true, "argument");
 
         while ((this.t.peekNextToken()).lexeme.equals(",")) {
             this.t.getNextToken();
-            parseVariableDeclaration(true, false, "argument");
+            parseVariableDeclaration(true, true, "argument");
         }
     }
 
@@ -482,7 +482,6 @@ public class Parser {
     private void parseFactor() throws ParserException, SemanticException, IOException {
         if (this.t.peekNextToken().lexeme.equals("-") || this.t.peekNextToken().lexeme.equals("~"))
             this.t.getNextToken();
-
         parseOperand();
     }
 
@@ -498,13 +497,12 @@ public class Parser {
 
         // if integerConstant, stringLiteral, true, false, null, this
         if (token.type == Token.TokenTypes.integer || token.type == Token.TokenTypes.stringConstant ||
-                token.lexeme.equals("true") || token.lexeme.equals("false") || token.lexeme.equals("null") ||
-                token.lexeme.equals("this")) {
+                token.lexeme.equals("true") || token.lexeme.equals("false") || token.lexeme.equals("null")) {
             this.t.getNextToken();
             return;
 
             // if identifier
-        } if (token.type == Token.TokenTypes.identifier) {
+        } if (token.type == Token.TokenTypes.identifier || token.lexeme.equals("this")) {
             Token identifier = parseIdentifier(false, false);
             Token classScopeIdentifier;
             boolean isClassIdentifier = this.t.peekNextToken().lexeme.equals(".");
@@ -616,18 +614,38 @@ public class Parser {
     private Token parseIdentifier(boolean declaredCheck, boolean initializedCheck) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         String name = token.lexeme;
+        boolean isClassScopeVariable = false;
+        boolean inSymbolTable = false;
 
         // check whether the token is an identifier or 'this' keyword
-        if (token.type != Token.TokenTypes.identifier && !token.lexeme.equals("this"))
+        if (token.lexeme.equals("this")) {
+            isClassScopeVariable = true;
+
+            if (!this.t.getNextToken().lexeme.equals("."))
+                throw new ParserException("Error, line: " + token.lineNumber + ", Expected '.'. Got: " + name);
+
+            token = this.t.getNextToken();
+            name = token.lexeme;
+
+        } else if (token.type != Token.TokenTypes.identifier && !token.lexeme.equals("this"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + name);
 
-        boolean inSymbolTable = this.currentSymbolTable.hierarchyContains(name) ;
+        if (isClassScopeVariable)
+            inSymbolTable = this.currentClassSymbolTable.hierarchyContains(name);
+         else
+            inSymbolTable = this.currentSymbolTable.hierarchyContains(name);
+
 
         // identifier semantic analysis
-        if (declaredCheck && (!inSymbolTable))
+        if (declaredCheck && (!inSymbolTable) && isClassScopeVariable)
+            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier this." + name + " used without previously declaring.");
+        else if (declaredCheck && (!inSymbolTable))
             throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + name + " used without previously declaring.");
-        if (initializedCheck && inSymbolTable && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized())
-            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + token.lexeme + " used before being initialized.");
+
+        if (initializedCheck && inSymbolTable && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized() && isClassScopeVariable)
+            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier this." + name + " used before being initialized.");
+        else if (initializedCheck && inSymbolTable && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized())
+            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + name + " used before being initialized.");
 
         return token;
     }

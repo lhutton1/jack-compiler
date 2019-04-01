@@ -1,20 +1,11 @@
-// in another file
-class Y
+class A {
+field int a;
+method int m ()
 {
- field char v;
- function void new() {
-
+let this.a = 3;
+ if (this.a) {
 
  }
+
 }
-// in one file
-class X
-{
- function void f (int a)
- {
- var Y y;
- var char c;
- let y = Y.new();
- let c = Z.play;
- }
 }
