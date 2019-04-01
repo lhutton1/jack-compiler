@@ -42,6 +42,11 @@ public class Parser {
     private void parseClass() throws ParserException, SemanticException, IOException {
         parseKeyword("class");
         Token identifier = parseIdentifier();
+
+        // Semantic analysis - check for redefinition
+        if (this.globalSymbolTable.contains(identifier.lexeme))
+            throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " has already been declared in this scope.");
+
         this.currentSymbolTable = this.globalSymbolTable.addSymbol(identifier.lexeme, identifier.lexeme, Symbol.KindTypes.CLASS, true);
         this.currentClassSymbolTable = this.currentSymbolTable;
         parseSymbol("{");
@@ -86,7 +91,7 @@ public class Parser {
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
 
-        parseVariableDeclaration(false, true, false, token.lexeme);
+        parseVariableDeclaration(false, true, token.lexeme);
         parseSymbol(";");
     }
 
@@ -158,11 +163,11 @@ public class Parser {
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
-        parseVariableDeclaration(true, false, true, "argument");
+        parseVariableDeclaration(true, false, "argument");
 
         while ((this.t.peekNextToken()).lexeme.equals(",")) {
             this.t.getNextToken();
-            parseVariableDeclaration(true, false, true, "argument");
+            parseVariableDeclaration(true, false, "argument");
         }
     }
 
@@ -225,7 +230,7 @@ public class Parser {
      */
     private void parseVarDeclarStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("var");
-        parseVariableDeclaration(false, false, false, "var");
+        parseVariableDeclaration(false, false, "var");
         parseSymbol(";");
     }
 
@@ -516,29 +521,23 @@ public class Parser {
                 this.t.getNextToken();
                 classScopeIdentifier = parseIdentifier(false, false);
 
-                // check if the identifier has been declared
-                // if not it could be a class name.
+                // check if the class level identifier has been declared
                 if (!this.currentSymbolTable.hierarchyContains(identifier.lexeme)) {
-                    // potential class name
                     this.unresolvedIdentifiers.add(identifier.lexeme + "." + classScopeIdentifier.lexeme);
                 } else {
-                    // get the type
                     String classType = this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType();
 
-                    // check for class existence
                     if (this.globalSymbolTable.contains(classType)) {
                         // now we want to check the .'x' exists in that class
                         if (!this.globalSymbolTable.getSymbol(classType).getChildSymbolTable().contains(classScopeIdentifier.lexeme)) {
-                            throw new SemanticException("undeclared");
+                            throw new SemanticException("Error, line: " + classScopeIdentifier.lineNumber + ", Identifier " + classScopeIdentifier.lexeme
+                                + " from class variable " + identifier.lexeme + " used before being declared.");
                         }
                     } else {
                         this.unresolvedIdentifiers.add(classType + "." + classScopeIdentifier.lexeme);
                     }
                 }
             }
-
-//            throw new SemanticException("Error, line: " + classScopeIdentifier.lineNumber + ", Identifier " + classScopeIdentifier.lexeme
-//                    + " from class variable " + identifier.lexeme + " used before being declared.");
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
                 this.t.getNextToken();
@@ -639,17 +638,16 @@ public class Parser {
      * whether a variable has previously been declared.
      *
      * @param singleIdentifierOnly whether to continue searching for more identifiers or just detect a single identifier.
-     * @param checkGlobalScope revert to checking the global scope instead of the method scope symbol table.
      * @param kind the kind of the variable i.e. static, field, argument, var.
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean checkGlobalScope, boolean isInitialized, String kind) throws ParserException, SemanticException, IOException {
+    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean isInitialized, String kind) throws ParserException, SemanticException, IOException {
         String type = parseType();
         Token token = parseIdentifier();
 
         // check for redeclaration
-        if (this.currentSymbolTable.hierarchyContains(token.lexeme))
+        if (this.currentSymbolTable.subroutineContains(token.lexeme))
             throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + token.lexeme);
 
         this.currentSymbolTable.addSymbol(token.lexeme, type, kind, isInitialized);

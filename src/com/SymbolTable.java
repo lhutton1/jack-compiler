@@ -133,6 +133,23 @@ public class SymbolTable {
         return null;
     }
 
+    public Symbol getSubroutineSymbol(String name) {
+        SymbolTable currentTable = this;
+
+        // search hierarchy
+        do {
+            if (currentTable.contains(name))
+                return currentTable.getSymbol(name);
+            currentTable = currentTable.parent;
+        } while (currentTable != null && currentTable.getKind() != Symbol.KindTypes.CLASS);
+
+        return null;
+    }
+
+    public boolean subroutineContains(String name) {
+        return this.getSubroutineSymbol(name) != null;
+    }
+
     /**
      * restore the parent symbol table.
      * @return parent symbol table
@@ -172,5 +189,9 @@ public class SymbolTable {
                 s.getValue().getChildSymbolTable().printTables(spacing + "    ");
             }
         }
+    }
+
+    public Symbol.KindTypes getKind() {
+        return kind;
     }
 }
