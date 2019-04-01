@@ -1,7 +1,17 @@
-class Main {
-
+// in another file
+class Y
+{
+ field char v;
+ function void new() {}
 }
-
-class Hello {
-
+// in one file
+class X
+{
+ function void f (int a)
+ {
+ var Y y;
+ var char c;
+ let y = Y.new();
+ let c = Z.play;
+ }
 }

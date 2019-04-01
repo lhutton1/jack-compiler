@@ -6,6 +6,8 @@ import java.util.Map;
 public class SymbolTable {
     private HashMap<String, Symbol> symbol;
     private SymbolTable parent;
+    private Symbol.KindTypes kind;
+    private String classType;
     private int index;
 
     /**
@@ -36,9 +38,16 @@ public class SymbolTable {
      * @return the symbol table that has been created if needed.
      */
     public SymbolTable addSymbol(String name, String type, Symbol.KindTypes kind, boolean initialized) {
-        if (kind == Symbol.KindTypes.SUBROUTINE || kind == Symbol.KindTypes.CLASS) {
+        if (kind == Symbol.KindTypes.SUBROUTINE || kind == Symbol.KindTypes.CLASS || kind == Symbol.KindTypes.INNER) {
             SymbolTable child = new SymbolTable(this);
+
+            if (kind == Symbol.KindTypes.CLASS)
+                child.classType = name;
+            else if (kind == Symbol.KindTypes.SUBROUTINE)
+                child.addSymbol("this", this.classType, Symbol.KindTypes.ARGUMENT, true);
+
             symbol.put(name, new Symbol(name, type, kind, index++, initialized, child));
+            child.kind = kind;
             return child;
         }
 
@@ -73,6 +82,9 @@ public class SymbolTable {
             case "procedure":
                 enumKind = Symbol.KindTypes.SUBROUTINE;
                 break;
+            case "inner":
+                enumKind = Symbol.KindTypes.INNER;
+                break;
             default:
                 enumKind = null;
                 break;
@@ -97,7 +109,7 @@ public class SymbolTable {
      * @return boolean, whether the symbol is contained by the current symbol table or any
      * higher up in the hierarchy.
      */
-    public boolean globalContains(String name) {
+    public boolean hierarchyContains(String name) {
         return this.getGlobalSymbol(name) != null;
     }
 
@@ -155,7 +167,8 @@ public class SymbolTable {
         for (Map.Entry<String, Symbol> s : symbol.entrySet()) {
             System.out.println(spacing + s.getValue());
 
-            if (s.getValue().getKind() == Symbol.KindTypes.CLASS || s.getValue().getKind() == Symbol.KindTypes.SUBROUTINE) {
+            if (s.getValue().getKind() == Symbol.KindTypes.CLASS || s.getValue().getKind() == Symbol.KindTypes.SUBROUTINE ||
+                    s.getValue().getKind() == Symbol.KindTypes.INNER) {
                 s.getValue().getChildSymbolTable().printTables(spacing + "    ");
             }
         }

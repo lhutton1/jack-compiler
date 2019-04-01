@@ -14,7 +14,8 @@ public class Symbol {
         VAR,
         ARGUMENT,
         SUBROUTINE,
-        CLASS
+        CLASS,
+        INNER
     }
 
 
@@ -40,7 +41,7 @@ public class Symbol {
      * Allow creation of a symbol if no child is needed
      */
     public Symbol(String name, String type, KindTypes kind, int index, boolean initialized) {
-        this(name, type, kind, index, initialized, null);
+        this(name, type, kind, index, initialized,null);
     }
 
     public String getName() { return this.name; }
