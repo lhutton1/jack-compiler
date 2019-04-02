@@ -8,6 +8,13 @@ public class SymbolTable {
     private SymbolTable parent;
     private Symbol.KindTypes kind;
     private String classType;
+
+    private int argumentCount;
+    private int fieldCount;
+    private int staticCount;
+    private int varCount;
+    private int otherCount;
+
     private int index;
 
     /**
@@ -26,6 +33,12 @@ public class SymbolTable {
         this.symbol = new HashMap<>();
         this.parent = parent;
         this.index = 0;
+
+        this.argumentCount = 0;
+        this.varCount = 0;
+        this.staticCount = 0;
+        this.fieldCount = 0;
+        this.otherCount = 0;
     }
 
 
@@ -46,16 +59,43 @@ public class SymbolTable {
             else if (kind == Symbol.KindTypes.SUBROUTINE)
                 child.addSymbol("this", this.classType, Symbol.KindTypes.ARGUMENT, true);
 
-            symbol.put(name, new Symbol(name, type, kind, index++, initialized, child));
+            insertSymbolWithCount(name, type, kind, initialized, child);
             child.kind = kind;
             return child;
         }
 
         // if child symbol table doesn't need creating
-        symbol.put(name, new Symbol(name, type, kind, index++, initialized));
+        insertSymbolWithCount(name, type, kind, initialized, null);
         return null;
     }
 
+    /**
+     * Add a symbol to the symbol table deducing which count to increment.
+     * @param name
+     * @param type
+     * @param kind
+     * @param initialized
+     * @param child
+     */
+    public void insertSymbolWithCount(String name, String type, Symbol.KindTypes kind, boolean initialized, SymbolTable child) {
+        switch (kind) {
+            case ARGUMENT:
+                symbol.put(name, new Symbol(name, type, kind, argumentCount++, initialized, child));
+                break;
+            case VAR:
+                symbol.put(name, new Symbol(name, type, kind, varCount++, initialized, child));
+                break;
+            case FIELD:
+                symbol.put(name, new Symbol(name, type, kind, fieldCount++, initialized, child));
+                break;
+            case STATIC:
+                symbol.put(name, new Symbol(name, type, kind, staticCount++, initialized, child));
+                break;
+            default:
+                symbol.put(name, new Symbol(name, type, kind, otherCount++, initialized, child));
+                break;
+        }
+    }
 
     /**
      * Add a symbol given a string as the kind.
@@ -194,4 +234,6 @@ public class SymbolTable {
     public Symbol.KindTypes getKind() {
         return kind;
     }
+
+    public int getArgumentCount() { return argumentCount; }
 }

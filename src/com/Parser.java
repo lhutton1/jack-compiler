@@ -242,16 +242,26 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseLetStatement() throws ParserException, SemanticException, IOException {
+        String returnType;
         parseKeyword("let");
         Token identifier = parseIdentifier(true, false);
 
         if (this.t.peekNextToken().lexeme.equals("[")) {
             this.t.getNextToken();
-            parseExpression();
+            returnType = parseExpression();
+
+            if (!returnType.equals("int"))
+                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Expression in array indices must always evaluate to an integer.");
+
             parseSymbol("]");
         }
         parseSymbol("=");
-        parseExpression();
+
+        returnType = parseExpression();
+        if (!returnType.equals("Array") && !returnType.equals(this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType()))
+            throw new SemanticException("Error, line: " + identifier.lineNumber + ", cannot assign type " + returnType + " to "
+                    + identifier.lexeme + ".");
+
         parseSymbol(";");
 
         // the variable has now been initialized
@@ -354,14 +364,19 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseSubroutineCall() throws ParserException, SemanticException, IOException {
-        parseIdentifier();
+        String identifier;
+        Token token = parseIdentifier();
+        identifier = token.lexeme;
+
         if (this.t.peekNextToken().lexeme.equals(".")) {
             this.t.getNextToken();
-            parseIdentifier();
+            token = parseIdentifier();
+            identifier = identifier + "." + token.lexeme;
         }
 
         parseSymbol("(");
-        parseExpressionList();
+        ArrayList<String> paramList = parseExpressionList();
+        checkSubroutineArguments(identifier, paramList);
         parseSymbol(")");
     }
 
@@ -372,15 +387,19 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseExpressionList() throws ParserException, SemanticException, IOException {
+    private ArrayList<String> parseExpressionList() throws ParserException, SemanticException, IOException {
+        ArrayList<String> paramTypes = new ArrayList<>();
+
         if (!this.t.peekNextToken().lexeme.equals(")")) {
-            parseExpression();
+            paramTypes.add(parseExpression());
 
             while (this.t.peekNextToken().lexeme.equals(",")) {
                 this.t.getNextToken();
-                parseExpression();
+                paramTypes.add(parseExpression());
             }
         }
+
+        return paramTypes;
     }
 
     /**
@@ -390,9 +409,10 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseExpression() throws ParserException, SemanticException, IOException {
+    private String parseExpression() throws ParserException, SemanticException, IOException {
+        String type;
         Token token;
-        parseRelationalExpression();
+        type = parseRelationalExpression();
 
         while (this.t.peekNextToken().lexeme.equals("&")
                 || this.t.peekNextToken().lexeme.equals("|")) {
@@ -401,8 +421,9 @@ public class Parser {
             if (!token.lexeme.equals("&") && !token.lexeme.equals("|"))
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected & or |. Got: " + token.lexeme);
 
-            parseRelationalExpression();
+            type = parseRelationalExpression();
         }
+        return type;
     }
 
     /**
@@ -412,9 +433,10 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseRelationalExpression() throws ParserException, SemanticException, IOException {
+    private String parseRelationalExpression() throws ParserException, SemanticException, IOException {
+        String type;
         Token token;
-        parseArithmeticExpression();
+        type = parseArithmeticExpression();
 
         while (this.t.peekNextToken().lexeme.equals("=")
                 || this.t.peekNextToken().lexeme.equals(">")
@@ -424,8 +446,10 @@ public class Parser {
             if (!token.lexeme.equals("=") && !token.lexeme.equals("<") && !token.lexeme.equals(">"))
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected =, < or >. Got: " + token.lexeme);
 
-            parseArithmeticExpression();
+            type = parseArithmeticExpression();
         }
+
+        return type;
     }
 
     /**
@@ -435,9 +459,10 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseArithmeticExpression() throws ParserException, SemanticException, IOException {
+    private String parseArithmeticExpression() throws ParserException, SemanticException, IOException {
+        String type;
         Token token;
-        parseTerm();
+        type = parseTerm();
 
         while (this.t.peekNextToken().lexeme.equals("+")
                 || this.t.peekNextToken().lexeme.equals("-")) {
@@ -446,8 +471,10 @@ public class Parser {
             if (!token.lexeme.equals("-") && !token.lexeme.equals("+"))
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected + or -. Got: " + token.lexeme);
 
-            parseTerm();
+            type = parseTerm();
         }
+
+        return type;
     }
 
     /**
@@ -457,9 +484,10 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseTerm() throws ParserException, SemanticException, IOException {
+    private String parseTerm() throws ParserException, SemanticException, IOException {
+        String type;
         Token token;
-        parseFactor();
+        type = parseFactor();
 
         while (this.t.peekNextToken().lexeme.equals("*")
                 || this.t.peekNextToken().lexeme.equals("/")) {
@@ -468,8 +496,9 @@ public class Parser {
             if (!token.lexeme.equals("*") && !token.lexeme.equals("/"))
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected * or /. Got: " + token.lexeme);
 
-            parseFactor();
+            type = parseFactor();
         }
+        return type;
     }
 
     /**
@@ -479,29 +508,42 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseFactor() throws ParserException, SemanticException, IOException {
+    private String parseFactor() throws ParserException, SemanticException, IOException {
         if (this.t.peekNextToken().lexeme.equals("-") || this.t.peekNextToken().lexeme.equals("~"))
             this.t.getNextToken();
-        parseOperand();
+        return parseOperand();
     }
 
     /**
      * Parse an operand.
      * operand → integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
+     * (edited to allow this keyword to represent a class variable)
      *
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseOperand() throws ParserException, SemanticException, IOException {
+    private String parseOperand() throws ParserException, SemanticException, IOException {
+        String type = "";
         Token token = this.t.peekNextToken();
 
         // if integerConstant, stringLiteral, true, false, null, this
         if (token.type == Token.TokenTypes.integer || token.type == Token.TokenTypes.stringConstant ||
                 token.lexeme.equals("true") || token.lexeme.equals("false") || token.lexeme.equals("null")) {
             this.t.getNextToken();
-            return;
 
-            // if identifier
+            // establish type
+            if (token.type == Token.TokenTypes.integer)
+                type = "int";
+            else if (token.type == Token.TokenTypes.stringConstant)
+                type = "stringConstant";
+            else if (token.lexeme.equals("true") || token.lexeme.equals("false"))
+                type = "bool";
+            else
+                type = "null";
+
+            return type;
+
+        // if identifier
         } if (token.type == Token.TokenTypes.identifier || token.lexeme.equals("this")) {
             Token identifier = parseIdentifier(false, false);
             Token classScopeIdentifier;
@@ -509,10 +551,14 @@ public class Parser {
 
             // Single identifier
             // Check to see if an identifier is declared or not
-            if (!isClassIdentifier && !this.currentSymbolTable.hierarchyContains(identifier.lexeme))
-                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being declared.");
-            else if (!isClassIdentifier && !this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).isInitialized())
-                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being initialized.");
+            if (!isClassIdentifier) {
+                if (!this.currentSymbolTable.hierarchyContains(identifier.lexeme))
+                    throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being declared.");
+                else if (!this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).isInitialized())
+                    throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being initialized.");
+
+                type = this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType();
+            }
 
             // Class identifier
             if (isClassIdentifier) {
@@ -535,25 +581,36 @@ public class Parser {
                         this.unresolvedIdentifiers.add(classType + "." + classScopeIdentifier.lexeme);
                     }
                 }
+
+                type = this.globalSymbolTable.getSymbol(identifier.lexeme).getChildSymbolTable().getSymbol(classScopeIdentifier.lexeme).getType();
             }
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
+                String returnType;
                 this.t.getNextToken();
-                parseExpression();
+                returnType = parseExpression();
+
+                if (!returnType.equals("int"))
+                    throw new SemanticException("Error, line: " + identifier.lineNumber + ", Expression in array indices must always evaluate to an integer.");
+
                 parseSymbol("]");
+                type = "Array";
             } else if (this.t.peekNextToken().lexeme.equals("(")) {
                 this.t.getNextToken();
                 parseExpressionList();
                 parseSymbol(")");
             }
-            return;
+
+            System.out.println(type);
+            return type;
         }
+
         // if expression
         if (token.lexeme.equals("(")) {
             this.t.getNextToken();
             parseExpression();
             parseSymbol(")");
-            return;
+            return type;
         }
         // should never be reached with 'good' source code
         throw new ParserException("Error, line: " + token.lineNumber + ", Expected beginning of operand. Got: " + token.lexeme);
@@ -627,7 +684,7 @@ public class Parser {
             token = this.t.getNextToken();
             name = token.lexeme;
 
-        } else if (token.type != Token.TokenTypes.identifier && !token.lexeme.equals("this"))
+        } else if (token.type != Token.TokenTypes.identifier)
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + name);
 
         if (isClassScopeVariable)
@@ -660,7 +717,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVariableDeclaration(boolean singleIdentifierOnly, boolean isInitialized, String kind) throws ParserException, SemanticException, IOException {
+    private String parseVariableDeclaration(boolean singleIdentifierOnly, boolean isInitialized, String kind) throws ParserException, SemanticException, IOException {
         String type = parseType();
         Token token = parseIdentifier();
 
@@ -677,6 +734,8 @@ public class Parser {
                 this.currentSymbolTable.addSymbol(token.lexeme, type, kind, isInitialized);
             }
         }
+
+        return type;
     }
 
     /**
@@ -691,5 +750,14 @@ public class Parser {
                 parseStatement();
             }
         }
+    }
+
+    private void parseClassScopeIdentifier() {
+
+    }
+
+    private void checkSubroutineArguments(String identifier, ArrayList<String> paramTypes) {
+        System.out.println(identifier);
+        System.out.println(paramTypes);
     }
 }

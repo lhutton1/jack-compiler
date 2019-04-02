@@ -1,11 +1,23 @@
 class A {
-field int a;
-method int m ()
-{
-let this.a = 3;
- if (this.a) {
+    field A a;
 
- }
+    method int m (int z, int y, int x)
+    {
+    var A b;
+    }
 
+    method int n() {
+        var int a;
+        let a = m(2, 3, 4);
+        }
 }
+
+class B {
+    field A b;
+
+    function int main() {
+        let b = A.a;
+        do A.m(2, 3, 4);
+    }
+
 }
