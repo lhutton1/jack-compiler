@@ -258,6 +258,7 @@ public class Parser {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseLetStatement() throws ParserException, SemanticException, IOException {
+        System.out.println("parsing let statement");
         String returnType;
         parseKeyword("let");
         Token identifier = parseIdentifier(true, false);
@@ -274,7 +275,7 @@ public class Parser {
         parseSymbol("=");
 
         returnType = parseExpression();
-        if (!returnType.equals("Array") && !returnType.equals(this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType()))
+        if (!returnType.equals("") && !returnType.equals("Array") && !returnType.equals(this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType()))
             throw new SemanticException("Error, line: " + identifier.lineNumber + ", cannot assign type " + returnType + " to "
                     + identifier.lexeme + ".");
 
@@ -552,7 +553,7 @@ public class Parser {
             else if (token.type == Token.TokenTypes.stringConstant)
                 type = "stringConstant";
             else if (token.lexeme.equals("true") || token.lexeme.equals("false"))
-                type = "bool";
+                type = "boolean";
             else
                 type = "null";
 
@@ -653,12 +654,11 @@ public class Parser {
 
         // check whether the token is an identifier or 'this' keyword
         if (token.lexeme.equals("this")) {
-            isClassScopeVariable = true;
+            if (this.t.peekNextToken().lexeme.equals(".")) {
+                isClassScopeVariable = true;
+                token = this.t.getNextToken();
+            }
 
-            if (!this.t.getNextToken().lexeme.equals("."))
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected '.'. Got: " + name);
-
-            token = this.t.getNextToken();
             name = token.lexeme;
 
         } else if (token.type != Token.TokenTypes.identifier)
@@ -772,7 +772,12 @@ public class Parser {
                 }
             }
 
-            type = this.globalSymbolTable.getSymbol(identifier.lexeme).getChildSymbolTable().getSymbol(classScopeIdentifier.lexeme).getType();
+            // in some cases the type cannot be retrieved since the type is not yet known e.g. class declared in another file.
+            try {
+                type = this.globalSymbolTable.getSymbol(identifier.lexeme).getChildSymbolTable().getSymbol(classScopeIdentifier.lexeme).getType();
+            } catch (NullPointerException e) {
+                type = "";
+            }
         }
 
         HashMap<String, String> map = new HashMap<>();
@@ -793,9 +798,14 @@ public class Parser {
 
         boolean isClassScopeIdentifier = classMemberIdentifier != null;
 
-        subroutine = !isClassScopeIdentifier ? this.currentSymbolTable.getGlobalSymbol(identifier).getChildSymbolTable() :
-            this.globalSymbolTable.getSymbol(identifier).getChildSymbolTable().getSymbol(classMemberIdentifier).getChildSymbolTable();
-        subroutineSymbolTypes = subroutine.getArgumentSymbols();
+        // if the subroutine has not yet been found then don't check argument types.
+        try {
+            subroutine = !isClassScopeIdentifier ? this.currentSymbolTable.getGlobalSymbol(identifier).getChildSymbolTable() :
+                    this.globalSymbolTable.getSymbol(identifier).getChildSymbolTable().getSymbol(classMemberIdentifier).getChildSymbolTable();
+            subroutineSymbolTypes = subroutine.getArgumentSymbols();
+        } catch(NullPointerException e) {
+            return;
+        }
 
         // check that the number of arguments
         if (paramTypes.size() != subroutine.getArgumentCount() - 1)
@@ -810,13 +820,7 @@ public class Parser {
 
     private void parseConditionalStatment() throws IOException, ParserException, SemanticException{
         parseSymbol("(");
-
-        String type = parseExpression();
-
-        // semantic check to make sure that only a boolean type is allowed in conditional statement.
-        if (!type.equals("bool"))
-            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + " Conditional statement must evaluate to boolean type.");
-
+        parseExpression();
         parseSymbol(")");
     }
 }
