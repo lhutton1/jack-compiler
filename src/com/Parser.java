@@ -151,9 +151,9 @@ public class Parser {
         parseSymbol("(");
         parseParamList();
         parseSymbol(")");
-        boolean returnsAllCodePaths = parseSubroutineBody(type);
+        boolean returnsAllCodePaths = parseSubroutineBody();
 
-        if (!returnsAllCodePaths)
+        if (!type.equals("void") && !returnsAllCodePaths)
             throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", Not all code paths return.");
 
         // restore parent symbol table
@@ -186,7 +186,7 @@ public class Parser {
      * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private boolean parseSubroutineBody(String type) throws ParserException, SemanticException, IOException {
+    private boolean parseSubroutineBody() throws ParserException, SemanticException, IOException {
         boolean returnsOnAllCodePaths = false;
         parseSymbol("{");
 
@@ -194,9 +194,6 @@ public class Parser {
             if (parseStatement())
                 returnsOnAllCodePaths = true;
         }
-
-        //if (type.equals("void"))
-        //    returnsOnAllCodePaths =
 
         parseSymbol("}");
         return returnsOnAllCodePaths;

@@ -14,4 +14,8 @@ class A {
             return 1;
         }
     }
+
+    method void n () {
+        return;
+    }
 }
