@@ -48,6 +48,7 @@ public class Symbol {
     public String getType() { return this.type; }
     public KindTypes getKind() { return this.kind; }
     public SymbolTable getChildSymbolTable() { return this.childSymbolTable; }
+    public int getIndex() { return this.index; }
 
     public boolean isInitialized() {
         return initialized;

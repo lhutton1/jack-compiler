@@ -1,23 +1,17 @@
 class A {
     field A a;
 
-    method int m (int z, int y, int x)
-    {
-    var A b;
-    }
+    method int m (int z, int y, int x) {
+        var A b;
 
-    method int n() {
-        var int a;
-        let a = m(2, 3, 4);
+        if (true) {
+            return 1;
+        } else {
+            return 2;
         }
-}
 
-class B {
-    field A b;
-
-    function int main() {
-        let b = A.a;
-        do A.m(2, 3, 4);
+        if (false) {
+            return 1;
+        }
     }
-
 }

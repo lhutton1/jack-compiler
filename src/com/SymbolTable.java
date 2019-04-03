@@ -7,6 +7,7 @@ public class SymbolTable {
     private HashMap<String, Symbol> symbol;
     private SymbolTable parent;
     private Symbol.KindTypes kind;
+    private String returnType;
     private String classType;
 
     private int argumentCount;
@@ -14,8 +15,6 @@ public class SymbolTable {
     private int staticCount;
     private int varCount;
     private int otherCount;
-
-    private int index;
 
     /**
      * Initialise a symbol table with no parent.
@@ -32,7 +31,6 @@ public class SymbolTable {
     public SymbolTable(SymbolTable parent) {
         this.symbol = new HashMap<>();
         this.parent = parent;
-        this.index = 0;
 
         this.argumentCount = 0;
         this.varCount = 0;
@@ -53,6 +51,7 @@ public class SymbolTable {
     public SymbolTable addSymbol(String name, String type, Symbol.KindTypes kind, boolean initialized) {
         if (kind == Symbol.KindTypes.SUBROUTINE || kind == Symbol.KindTypes.CLASS || kind == Symbol.KindTypes.INNER) {
             SymbolTable child = new SymbolTable(this);
+            child.returnType = type;
 
             if (kind == Symbol.KindTypes.CLASS)
                 child.classType = name;
@@ -235,5 +234,18 @@ public class SymbolTable {
         return kind;
     }
 
+    public String getReturnType() { return returnType; }
+
     public int getArgumentCount() { return argumentCount; }
+
+    public HashMap<Integer, String> getArgumentSymbols() {
+        HashMap<Integer, String> result = new HashMap<>();
+
+        for (Symbol s : this.symbol.values()) {
+            if (s.getKind() == Symbol.KindTypes.ARGUMENT)
+                result.put(s.getIndex(), s.getType());
+        }
+
+        return result;
+    }
 }
