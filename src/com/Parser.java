@@ -61,7 +61,7 @@ public class Parser {
 
         // Semantic analysis - check for redefinition
         if (this.globalSymbolTable.contains(identifier.lexeme))
-            throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " has already been declared in this scope.");
+            throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " has already been declared in this scope.");
 
         this.currentSymbolTable = this.globalSymbolTable.addSymbol(identifier.lexeme, identifier.lexeme, Symbol.KindTypes.CLASS, true);
         this.currentClassSymbolTable = this.currentSymbolTable;
@@ -91,7 +91,7 @@ public class Parser {
         else if (token.lexeme.equals("constructor") || token.lexeme.equals("function") || token.lexeme.equals("method"))
             parseSubRoutineDeclaration();
         else
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected class member declaration. Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected class member declaration. Got: " + token.lexeme);
     }
 
     /**
@@ -105,7 +105,7 @@ public class Parser {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected static or field. Got: " + token.lexeme);
 
         parseVariableDeclaration(false, false, token.lexeme);
         parseSymbol(";");
@@ -124,7 +124,7 @@ public class Parser {
 
         if (!token.lexeme.equals("int") && !token.lexeme.equals("char")
                 && !token.lexeme.equals("boolean") && token.type != Token.TokenTypes.identifier)
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected type declaration. Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected type declaration. Got: " + token.lexeme);
 
         return token.lexeme;
     }
@@ -142,7 +142,7 @@ public class Parser {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals("constructor") && !token.lexeme.equals("function") && !token.lexeme.equals("method"))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected function declaration. Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected function declaration. Got: " + token.lexeme);
 
         if (this.t.peekNextToken().lexeme.equals("void")) {
             this.t.getNextToken();
@@ -155,7 +155,7 @@ public class Parser {
 
         // check for redeclaration and add symbol
         if (this.currentSymbolTable.contains(identifier.lexeme))
-            throw new ParserException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + identifier.lexeme);
+            throw new ParserException(this.t.peekNextToken().lineNumber, "Redeclaration of identifier: " + identifier.lexeme);
         else {
             this.currentSymbolTable = this.currentSymbolTable.addSymbol(identifier.lexeme, type, Symbol.KindTypes.SUBROUTINE, true);
             this.currentSubroutineTable = this.currentSymbolTable;
@@ -167,7 +167,7 @@ public class Parser {
         boolean returnsAllCodePaths = parseSubroutineBody();
 
         if (!type.equals("void") && !returnsAllCodePaths)
-            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", Not all code paths return.");
+            throw new SemanticException(this.t.peekNextToken().lineNumber, "Not all code paths return.");
 
         // restore parent symbol table
         this.currentSymbolTable = this.currentSymbolTable.restoreParent();
@@ -244,7 +244,7 @@ public class Parser {
                 returnsOnAllCodePaths = true;
                 break;
             default:
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected statement. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber + "Expected statement. Got: " + token.lexeme);
         }
 
         return returnsOnAllCodePaths;
@@ -281,7 +281,7 @@ public class Parser {
             returnType = parseExpression();
 
             if (!returnType.equals("int"))
-                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Expression in array indices must always evaluate to an integer.");
+                throw new SemanticException(identifier.lineNumber, "Expression in array indices must always evaluate to an integer.");
 
             parseSymbol("]");
         }
@@ -289,7 +289,7 @@ public class Parser {
 
         returnType = parseExpression();
         if (!returnType.equals("") && !returnType.equals("Array") && !returnType.equals(this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType()))
-            throw new SemanticException("Error, line: " + identifier.lineNumber + ", cannot assign type " + returnType + " to "
+            throw new SemanticException(identifier.lineNumber, "Cannot assign type " + returnType + " to "
                     + identifier.lexeme + ".");
 
         parseSymbol(";");
@@ -298,7 +298,7 @@ public class Parser {
         try {
             this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).setInitialized(true);
         } catch (NullPointerException e) {
-            throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used without previously declaring.");
+            throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used without previously declaring.");
         }
     }
 
@@ -381,7 +381,7 @@ public class Parser {
         // check return type matches
         type = type.equals("") ? "void" : type;
         if (!this.currentSubroutineTable.getReturnType().equals(type)) {
-            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + " Return type " + type + " not compatible with return type specified in function declaration.");
+            throw new SemanticException(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type specified in function declaration.");
         }
 
         parseSymbol(";");
@@ -389,7 +389,7 @@ public class Parser {
         // check for unreachable code
         Token token = this.t.peekNextToken();
         if (!token.lexeme.equals("}"))
-            throw new SemanticException("Error, line: " + token.lineNumber + " Unreachable code will not be executed.");
+            throw new SemanticException(token.lineNumber, "Unreachable code will not be executed.");
     }
 
     /**
@@ -448,7 +448,7 @@ public class Parser {
             token = this.t.getNextToken();
 
             if (!token.lexeme.equals("&") && !token.lexeme.equals("|"))
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected & or |. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber, "Expected & or |. Got: " + token.lexeme);
 
             type = parseRelationalExpression();
         }
@@ -473,7 +473,7 @@ public class Parser {
             token = this.t.getNextToken();
 
             if (!token.lexeme.equals("=") && !token.lexeme.equals("<") && !token.lexeme.equals(">"))
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected =, < or >. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber, "Expected =, < or >. Got: " + token.lexeme);
 
             type = parseArithmeticExpression();
         }
@@ -498,7 +498,7 @@ public class Parser {
             token = this.t.getNextToken();
 
             if (!token.lexeme.equals("-") && !token.lexeme.equals("+"))
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected + or -. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber + "Expected + or -. Got: " + token.lexeme);
 
             type = parseTerm();
         }
@@ -523,7 +523,7 @@ public class Parser {
             token = this.t.getNextToken();
 
             if (!token.lexeme.equals("*") && !token.lexeme.equals("/"))
-                throw new ParserException("Error, line: " + token.lineNumber + ", Expected * or /. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber + "Expected * or /. Got: " + token.lexeme);
 
             type = parseFactor();
         }
@@ -583,7 +583,7 @@ public class Parser {
                 returnType = parseExpression();
 
                 if (!returnType.equals("int"))
-                    throw new SemanticException("Error, line: " + arrayIndexStart.lineNumber + ", Expression in array indices must always evaluate to an integer.");
+                    throw new SemanticException(arrayIndexStart.lineNumber, "Expression in array indices must always evaluate to an integer.");
 
                 parseSymbol("]");
                 type = "Array";
@@ -604,7 +604,7 @@ public class Parser {
             return type;
         }
         // should never be reached with 'good' source code
-        throw new ParserException("Error, line: " + token.lineNumber + ", Expected beginning of operand. Got: " + token.lexeme);
+        throw new ParserException(token.lineNumber, "Expected beginning of operand. Got: " + token.lexeme);
     }
 
     /*
@@ -623,7 +623,7 @@ public class Parser {
     private void parseSymbol(String symbol) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(symbol))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + symbol + ". Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected " + symbol + ". Got: " + token.lexeme);
     }
 
     /**
@@ -636,7 +636,7 @@ public class Parser {
     private void parseKeyword(String keyword) throws ParserException, SemanticException, IOException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(keyword))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + keyword + "keyword. Got: " + token.lexeme);
+            throw new ParserException(token.lineNumber, "Expected " + keyword + "keyword. Got: " + token.lexeme);
     }
 
     /**
@@ -675,7 +675,7 @@ public class Parser {
             name = token.lexeme;
 
         } else if (token.type != Token.TokenTypes.identifier)
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + name);
+            throw new ParserException(token.lineNumber, "Expected identifier. Got: " + name);
 
         if (isClassScopeVariable)
             inSymbolTable = this.currentClassSymbolTable.hierarchyContains(name);
@@ -685,14 +685,14 @@ public class Parser {
 
         // identifier semantic analysis
         if (declaredCheck && (!inSymbolTable) && isClassScopeVariable)
-            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier this." + name + " used without previously declaring.");
+            throw new SemanticException(token.lineNumber, "Identifier this." + name + " used without previously declaring.");
         else if (declaredCheck && (!inSymbolTable))
-            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + name + " used without previously declaring.");
+            throw new SemanticException(token.lineNumber, "Identifier " + name + " used without previously declaring.");
 
         if (initializedCheck && inSymbolTable && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized() && isClassScopeVariable)
-            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier this." + name + " used before being initialized.");
+            throw new SemanticException(token.lineNumber, "Identifier this." + name + " used before being initialized.");
         else if (initializedCheck && inSymbolTable && !this.currentSymbolTable.getGlobalSymbol(name).isInitialized())
-            throw new SemanticException("Error, line: " + token.lineNumber + ", Identifier " + name + " used before being initialized.");
+            throw new SemanticException(token.lineNumber, "Identifier " + name + " used before being initialized.");
 
         return token;
     }
@@ -713,7 +713,7 @@ public class Parser {
 
         // check for redeclaration
         if (this.currentSymbolTable.subroutineContains(token.lexeme))
-            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", Redeclaration of identifier: " + token.lexeme);
+            throw new SemanticException(this.t.peekNextToken().lineNumber, "Redeclaration of identifier: " + token.lexeme);
 
         this.currentSymbolTable.addSymbol(token.lexeme, type, kind, isInitialized);
 
@@ -756,9 +756,9 @@ public class Parser {
         // Check to see if an identifier is declared or not
         if (!isClassIdentifier) {
             if (!this.currentSymbolTable.hierarchyContains(identifier.lexeme))
-                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being declared.");
+                throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used before being declared.");
             else if (!this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).isInitialized())
-                throw new SemanticException("Error, line: " + identifier.lineNumber + ", Identifier " + identifier.lexeme + " used before being initialized.");
+                throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used before being initialized.");
 
             type = this.currentSymbolTable.getGlobalSymbol(identifier.lexeme).getType();
         }
@@ -777,7 +777,7 @@ public class Parser {
                 if (this.globalSymbolTable.contains(classType)) {
                     // now we want to check the .'x' exists in that class
                     if (!this.globalSymbolTable.getSymbol(classType).getChildSymbolTable().contains(classScopeIdentifier.lexeme)) {
-                        throw new SemanticException("Error, line: " + classScopeIdentifier.lineNumber + ", Identifier " + classScopeIdentifier.lexeme
+                        throw new SemanticException(classScopeIdentifier.lineNumber, "Identifier " + classScopeIdentifier.lexeme
                                 + " from class variable " + identifier.lexeme + " used before being declared.");
                     }
                 } else {
@@ -822,12 +822,12 @@ public class Parser {
 
         // check that the number of arguments
         if (paramTypes.size() != subroutine.getArgumentCount() - 1)
-            throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", The number of arguments for the function call doesn't match that of the declaration.");
+            throw new SemanticException(this.t.peekNextToken().lineNumber, "The number of arguments for the function call doesn't match that of the declaration.");
 
         // check that arguments and no.arguments match.
         for (int x = 0; x < paramTypes.size(); x++) {
             if (!paramTypes.get(x).equals(subroutineSymbolTypes.get(x+1)))
-                throw new SemanticException("Error, line: " + this.t.peekNextToken().lineNumber + ", The type: " + paramTypes.get(x) + " doesn't match the type used in the function declaration.");
+                throw new SemanticException(this.t.peekNextToken().lineNumber, "The type: " + paramTypes.get(x) + " doesn't match the type used in the function declaration.");
         }
     }
 
