@@ -82,6 +82,13 @@ public class Tokenizer {
         }
     }
 
+    public Tokenizer(File file) throws IllegalArgumentException, FileNotFoundException {
+        this.br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file),
+                        Charset.forName("UTF-8"))
+        );
+    }
+
     /**
      * Get the extension of a filePath.
      * Modified from: https://stackoverflow.com/questions/3571223/

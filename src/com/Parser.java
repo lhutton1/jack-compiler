@@ -1,5 +1,6 @@
 package com;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,6 +34,18 @@ public class Parser {
         System.out.println("There are no syntax errors");
         this.globalSymbolTable.printTables();
         System.out.println(this.unresolvedIdentifiers);
+    }
+
+    public Parser(File file) throws IOException, ParserException, SemanticException {
+        this.t = new Tokenizer(file);
+        this.globalSymbolTable = new SymbolTable();
+        this.currentSymbolTable = this.globalSymbolTable;
+        this.unresolvedIdentifiers = new ArrayList<>();
+    }
+
+    public void run() throws IOException, ParserException, SemanticException {
+        while (this.t.peekNextToken().type != Token.TokenTypes.EOF)
+            this.parseClass();
     }
 
     /**
