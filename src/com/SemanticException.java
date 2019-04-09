@@ -1,5 +1,9 @@
 package com;
 
+/**
+ * A semantic exception is thrown when the compilation engine runs into an
+ * issue regarding the semantics of the input jack file.
+ */
 public class SemanticException extends Exception {
     private final int lineNumber;
 

@@ -55,16 +55,17 @@ public class JackCompiler {
      */
     private static void compile(File file) {
         try {
-            Parser parser = new Parser(file);
-            parser.run();
+            CompilationEngine compilationEngine = new CompilationEngine(file);
+            compilationEngine.run();
         } catch (ParserException e) {
             System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
             System.exit(1);
         } catch (SemanticException e) {
             System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         } catch (IOException e) {
-            System.err.println("IO Error: " + e.getMessage());
+            System.err.println("[IO Error] " + e.getMessage());
             System.exit(1);
         }
     }

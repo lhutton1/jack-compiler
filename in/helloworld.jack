@@ -1,21 +1,16 @@
-class A {
-    field A a;
+class helloworld {
 
-    method int m (int z, int y, int x) {
-        var A b;
-
-        if (true) {
-            return 1;
-        } else {
-            return 2;
-        }
-
-        if (false) {
-            return 1;
-        }
+    constructor helloworld new(int y) {
+        var int x;
+        let x = 1 + 2;
+        return this;
     }
-
-    method void n () {
+    method void test(int x, int t) {
+        var int z;
+        var int y;
+        return;
+    }
+    method void hello() {
         return;
     }
 }

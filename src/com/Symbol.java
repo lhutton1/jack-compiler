@@ -3,21 +3,45 @@ package com;
 public class Symbol {
     private String name;
     private String type;
-    private KindTypes kind;
+    private Kind kind;
     private SymbolTable childSymbolTable;
     private int index;
     private boolean initialized;
 
-    public enum KindTypes {
-        STATIC,
-        FIELD,
-        VAR,
-        ARGUMENT,
-        SUBROUTINE,
-        CLASS,
-        INNER
-    }
+    public enum Kind {
+        STATIC("static"),
+        FIELD("field"),
+        LOCAL("local"),
+        ARGUMENT("argument"),
+        CLASS("class"),
+        INNER("inner"),
+        METHOD("method"),
+        FUNCTION("function"),
+        CONSTRUCTOR("constructor");
 
+        private String name;
+
+        Kind(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public static Kind fromString(String text) {
+            for (Kind kind : Kind.values()) {
+                if (kind.name.equalsIgnoreCase(text))
+                    return kind;
+            }
+            throw new IllegalArgumentException("String " + text + " not found in enum");
+        }
+
+        @Override
+        public String toString() {
+            return this.name;
+        }
+    }
 
     /**
      * Create a new symbol.
@@ -28,34 +52,31 @@ public class Symbol {
      * @param initialized whether the symbol is initialized
      * @param childSymbolTable the child symbol table if it's kind is class or subroutine.
      */
-    public Symbol(String name, String type, KindTypes kind, int index, boolean initialized, SymbolTable childSymbolTable) {
+    public Symbol(String name, String type, Kind kind, int index, boolean initialized, SymbolTable childSymbolTable) {
         this.name = name;
         this.type = type;
         this.kind = kind;
         this.index = index;
-        this.childSymbolTable = childSymbolTable;
         this.initialized = initialized;
+        this.childSymbolTable = childSymbolTable;
     }
 
-    /**
-     * Allow creation of a symbol if no child is needed
-     */
-    public Symbol(String name, String type, KindTypes kind, int index, boolean initialized) {
+    public Symbol(String name, String type, Kind kind, int index, boolean initialized) {
         this(name, type, kind, index, initialized,null);
     }
 
     public String getName() { return this.name; }
     public String getType() { return this.type; }
-    public KindTypes getKind() { return this.kind; }
+    public Kind getKind() { return this.kind; }
     public SymbolTable getChildSymbolTable() { return this.childSymbolTable; }
     public int getIndex() { return this.index; }
 
-    public boolean isInitialized() {
-        return initialized;
-    }
-
     public void setInitialized(boolean initialized) {
         this.initialized = initialized;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
     }
 
     @Override
