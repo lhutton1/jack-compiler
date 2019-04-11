@@ -1,16 +1,22 @@
 class helloworld {
+    field int hell;
+    field int tst;
 
-    constructor helloworld new(int y) {
+    constructor helloworld new() {
         var int x;
-        let x = 1 + 2;
+        var int d;
         return this;
     }
-    method void test(int x, int t) {
+    method void test(int x) {
         var int z;
         var int y;
+        let x = 7;
         return;
     }
     method void hello() {
         return;
+    }
+    function int help() {
+        return 10;
     }
 }

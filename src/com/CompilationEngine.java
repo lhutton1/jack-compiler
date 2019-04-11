@@ -172,16 +172,22 @@ public class CompilationEngine {
         parseSymbol("(");
         symbols = parseParamList();
         parseSymbol(")");
-        boolean returnsAllCodePaths = parseSubroutineBody();
-
-        if (!type.equals("void") && !returnsAllCodePaths)
-            throw new SemanticException(this.t.peekNextToken().lineNumber, "Not all code paths return.");
 
         // generate the function VM code
         this.w.writeLine("function " + this.globalSymbolTable.getName() + "." + identifier.lexeme + " " + this.currentSymbolTable.getLocalCount());
         if (token.lexeme.equals("constructor")) {
-
+            this.w.writeLine("push constant " + this.globalSymbolTable.getFieldCount());
+            this.w.writeLine("call Memory.alloc 1");
+            this.w.writeLine("pop pointer 0");
+        } else if (token.lexeme.equals("method")) {
+            this.w.writeLine("push argument 0");
+            this.w.writeLine("pop pointer 0");
         }
+
+        boolean returnsAllCodePaths = parseSubroutineBody();
+
+        if (!type.equals("void") && !returnsAllCodePaths)
+            throw new SemanticException(this.t.peekNextToken().lineNumber, "Not all code paths return.");
 
         // restore parent symbol table
         this.currentSymbolTable = this.currentSymbolTable.getParent();
@@ -292,8 +298,10 @@ public class CompilationEngine {
         String returnType;
         parseKeyword("let");
         Token identifier = parseIdentifier(true, false);
+        boolean isArrayIdentifier = false;
 
         if (this.t.peekNextToken().lexeme.equals("[")) {
+            isArrayIdentifier = true;
             this.t.getNextToken();
             returnType = parseExpression();
 
@@ -302,6 +310,8 @@ public class CompilationEngine {
 
             parseSymbol("]");
         }
+
+
         parseSymbol("=");
 
         returnType = parseExpression();
@@ -310,6 +320,12 @@ public class CompilationEngine {
                     + identifier.lexeme + ".");
 
         parseSymbol(";");
+
+        if (!isArrayIdentifier) {
+            // VM CODE - pop variable
+            this.w.writeLine("pop " + this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getKind().toString() +
+                    " " + this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getIndex());
+        }
 
         // the variable has now been initialized
         try {
@@ -395,12 +411,16 @@ public class CompilationEngine {
         if (!this.t.peekNextToken().lexeme.equals(";"))
             type = parseExpression();
 
-        // check return type matches
+        // SEMANTIC ANALYSIS - check return type matches
         type = type.equals("") ? "void" : type;
-
-        if (this.currentSubroutineTable != null && !this.currentSubroutineTable.getInfo().getType().equals(type)) {
+        if (this.currentSubroutineTable != null && !this.currentSubroutineTable.getInfo().getType().equals(type))
             throw new SemanticException(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type specified in function declaration.");
-        }
+
+        // VM CODE - push void
+        System.out.println(type);
+        if (type.equals("void"))
+            this.w.writeLine("push constant 0");
+        this.w.writeLine("return");
 
         parseSymbol(";");
 
@@ -536,6 +556,8 @@ public class CompilationEngine {
         Token token;
         type = parseFactor();
 
+
+
         while (this.t.peekNextToken().lexeme.equals("*")
                 || this.t.peekNextToken().lexeme.equals("/")) {
             token = this.t.getNextToken();
@@ -579,14 +601,25 @@ public class CompilationEngine {
             this.t.getNextToken();
 
             // establish type
-            if (token.type == Token.TokenTypes.integer)
+            if (token.type == Token.TokenTypes.integer) {
+                this.w.writeLine("push constant " + token.lexeme);
                 type = "int";
-            else if (token.type == Token.TokenTypes.stringConstant)
+            } else if (token.type == Token.TokenTypes.stringConstant) {
+                this.w.writeLine("push constant " + token.lexeme.length());
+                this.w.writeLine("call String.new 1");
                 type = "stringConstant";
-            else if (token.lexeme.equals("true") || token.lexeme.equals("false"))
+            } else if (token.lexeme.equals("true") || token.lexeme.equals("false")) {
+                if (token.lexeme.equals("true")) {
+                    this.w.writeLine("push constant 1");
+                    this.w.writeLine("neg");
+                } else
+                    this.w.writeLine("push constant 0");
+
                 type = "boolean";
-            else
+            } else {
+                this.w.writeLine("push constant 0");
                 type = "null";
+            }
 
             return type;
 
@@ -594,6 +627,9 @@ public class CompilationEngine {
         } if (token.type == Token.TokenTypes.identifier || token.lexeme.equals("this")) {
             Map<String, String> results = parseClassScopeIdentifier();
             type = results.get("type");
+
+            if (!this.t.peekNextToken().lexeme.equals("."))
+                this.w.writeLine("push pointer 0");
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
                 String returnType;
