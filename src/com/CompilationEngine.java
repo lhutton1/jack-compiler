@@ -173,8 +173,11 @@ public class CompilationEngine {
         symbols = parseParamList();
         parseSymbol(")");
 
-        // generate the function VM code
+        boolean returnsAllCodePaths = parseSubroutineBody();
+
+        // VM CODE - generate the function
         this.w.writeLine("function " + this.globalSymbolTable.getName() + "." + identifier.lexeme + " " + this.currentSymbolTable.getLocalCount());
+
         if (token.lexeme.equals("constructor")) {
             this.w.writeLine("push constant " + this.globalSymbolTable.getFieldCount());
             this.w.writeLine("call Memory.alloc 1");
@@ -184,7 +187,7 @@ public class CompilationEngine {
             this.w.writeLine("pop pointer 0");
         }
 
-        boolean returnsAllCodePaths = parseSubroutineBody();
+        this.w.writeNow();
 
         if (!type.equals("void") && !returnsAllCodePaths)
             throw new SemanticException(this.t.peekNextToken().lineNumber, "Not all code paths return.");
@@ -323,7 +326,7 @@ public class CompilationEngine {
 
         if (!isArrayIdentifier) {
             // VM CODE - pop variable
-            this.w.writeLine("pop " + this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getKind().toString() +
+            this.w.writeLater("pop " + this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getKind().toString() +
                     " " + this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getIndex());
         }
 
@@ -395,6 +398,10 @@ public class CompilationEngine {
     private void parseDoStatement() throws ParserException, SemanticException, IOException {
         parseKeyword("do");
         parseSubroutineCall();
+
+        // VM CODE - pop temp
+        this.w.writeLater("pop temp 0");
+
         parseSymbol(";");
     }
 
@@ -419,8 +426,8 @@ public class CompilationEngine {
         // VM CODE - push void
         System.out.println(type);
         if (type.equals("void"))
-            this.w.writeLine("push constant 0");
-        this.w.writeLine("return");
+            this.w.writeLater("push constant 0");
+        this.w.writeLater("return");
 
         parseSymbol(";");
 
@@ -445,6 +452,9 @@ public class CompilationEngine {
         ArrayList<String> paramList = parseExpressionList();
         checkSubroutineArguments(results.get("classIdentifier"), results.get("classMemberIdentifier"), paramList);
         parseSymbol(")");
+
+        // VM CODE - call identifier
+        this.w.writeLater("call " +  + ".");
     }
 
     /**
@@ -602,22 +612,22 @@ public class CompilationEngine {
 
             // establish type
             if (token.type == Token.TokenTypes.integer) {
-                this.w.writeLine("push constant " + token.lexeme);
+                this.w.writeLater("push constant " + token.lexeme);
                 type = "int";
             } else if (token.type == Token.TokenTypes.stringConstant) {
-                this.w.writeLine("push constant " + token.lexeme.length());
-                this.w.writeLine("call String.new 1");
+                this.w.writeLater("push constant " + token.lexeme.length());
+                this.w.writeLater("call String.new 1");
                 type = "stringConstant";
             } else if (token.lexeme.equals("true") || token.lexeme.equals("false")) {
                 if (token.lexeme.equals("true")) {
-                    this.w.writeLine("push constant 1");
-                    this.w.writeLine("neg");
+                    this.w.writeLater("push constant 1");
+                    this.w.writeLater("neg");
                 } else
-                    this.w.writeLine("push constant 0");
+                    this.w.writeLater("push constant 0");
 
                 type = "boolean";
             } else {
-                this.w.writeLine("push constant 0");
+                this.w.writeLater("push constant 0");
                 type = "null";
             }
 
@@ -629,7 +639,7 @@ public class CompilationEngine {
             type = results.get("type");
 
             if (!this.t.peekNextToken().lexeme.equals("."))
-                this.w.writeLine("push pointer 0");
+                this.w.writeLater("push pointer 0");
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
                 String returnType;

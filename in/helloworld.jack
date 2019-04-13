@@ -7,15 +7,17 @@ class helloworld {
         var int d;
         return this;
     }
+    method void hello() {
+            return;
+    }
     method void test(int x) {
         var int z;
         var int y;
         let x = 7;
+        do hello();
         return;
     }
-    method void hello() {
-        return;
-    }
+
     function int help() {
         return 10;
     }

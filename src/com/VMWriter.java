@@ -10,10 +10,12 @@ import java.nio.file.Paths;
 public class VMWriter {
     private File file;
     private BufferedWriter writer;
+    private StringBuilder code;
 
     public VMWriter(File jackFile) throws IOException {
         this.file = changeExtension(jackFile, ".vm");
         this.writer = Files.newBufferedWriter(Paths.get(file.getAbsolutePath()), StandardCharsets.UTF_8);
+        this.code = new StringBuilder();
     }
 
     public static File changeExtension(File file, String newExtension) {
@@ -22,9 +24,6 @@ public class VMWriter {
     }
 
     public void writeLine(String line) throws IOException {
-        if (this.writer == null)
-            return;
-
         this.writer.append(line);
         this.writer.append("\n");
     }
@@ -32,5 +31,15 @@ public class VMWriter {
     public void close() throws IOException {
         this.writer.flush();
         this.writer.close();
+    }
+
+    public void writeLater(String line) {
+        this.code.append(line);
+        this.code.append("\n");
+    }
+
+    public void writeNow() throws IOException {
+        this.writer.append(this.code.toString());
+        this.code.setLength(0);
     }
 }
