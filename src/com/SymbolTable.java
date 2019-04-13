@@ -88,7 +88,7 @@ public class SymbolTable {
             child = new SymbolTable(this);
 
             if (kind == Symbol.Kind.METHOD)
-                child.addSymbol("this", this.info.getType(), Symbol.Kind.ARGUMENT, true);
+                child.addSymbol("this", this.info.getType(), Symbol.Kind.POINTER, true);
 
             newSymbol = insertSymbolWithCount(name, type, kind, initialized, child);
             child.info = newSymbol;
@@ -105,6 +105,7 @@ public class SymbolTable {
 
         switch (kind) {
             case ARGUMENT:
+            case POINTER:
                 newSymbol = new Symbol(name, type, kind, argumentCount++, initialized, child);
                 symbolMap.put(name, newSymbol);
                 break;

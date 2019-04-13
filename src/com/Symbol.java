@@ -10,14 +10,15 @@ public class Symbol {
 
     public enum Kind {
         STATIC("static"),
-        FIELD("field"),
+        FIELD("this"),
         LOCAL("local"),
         ARGUMENT("argument"),
         CLASS("class"),
         INNER("inner"),
         METHOD("method"),
         FUNCTION("function"),
-        CONSTRUCTOR("constructor");
+        CONSTRUCTOR("constructor"),
+        POINTER("pointer");
 
         private String name;
 
@@ -31,7 +32,7 @@ public class Symbol {
 
         public static Kind fromString(String text) {
             for (Kind kind : Kind.values()) {
-                if (kind.name.equalsIgnoreCase(text))
+                if (kind.getName().equals(text))
                     return kind;
             }
             throw new IllegalArgumentException("String " + text + " not found in enum");

@@ -1,24 +1,24 @@
 class helloworld {
-    field int hell;
-    field int tst;
+    field int side1;
+    field int side2;
+    field int side3;
+    field int perimeter;
 
-    constructor helloworld new() {
-        var int x;
-        var int d;
+    constructor helloworld new(int s1, int s2, int s3) {
+        let side1 = s1;
+        let side2 = s2;
+        let side3 = s3;
         return this;
     }
-    method void hello() {
-            return;
-    }
-    method void test(int x) {
-        var int z;
-        var int y;
-        let x = 7;
-        do hello();
-        return;
+
+    method int getPerimeter() {
+        var int p;
+        let p = side1 & side2;
+        return p;
     }
 
-    function int help() {
-        return 10;
+    method void setPerimeter(int p) {
+        let perimeter = p;
+        return;
     }
 }

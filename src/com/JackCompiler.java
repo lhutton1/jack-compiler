@@ -62,7 +62,7 @@ public class JackCompiler {
             System.exit(1);
         } catch (SemanticException e) {
             System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
-            e.printStackTrace();
+            e.printStackTrace(); //TODO remove.
             System.exit(1);
         } catch (IOException e) {
             System.err.println("[IO Error] " + e.getMessage());

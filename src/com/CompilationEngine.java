@@ -7,6 +7,13 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
+//TODO
+// - make sure that function calls have the same number of arguments as the declaration.
+// - vm code for if statements
+// - vm code for while statements
+// - vm code for do statements with functions outside of the class
+// - functions declared after calling function are accepted
+
 public class CompilationEngine {
     private Tokenizer t;
     private VMWriter w;
@@ -47,6 +54,8 @@ public class CompilationEngine {
     public void run() throws IOException, ParserException, SemanticException {
         this.parseClass();
         this.currentSymbolTable.printTables();
+        System.out.println(this.unresolvedIdentifiers);
+
 
         try {
             this.w.close();
@@ -114,7 +123,8 @@ public class CompilationEngine {
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException(token.lineNumber, "Expected static or field. Got: " + token.lexeme);
 
-        parseVariableDeclaration(false, false, token.lexeme);
+        String kind  = token.lexeme.equals("field") ? "this" : token.lexeme;
+        parseVariableDeclaration(false, false, kind);
         parseSymbol(";");
     }
 
@@ -423,8 +433,7 @@ public class CompilationEngine {
         if (this.currentSubroutineTable != null && !this.currentSubroutineTable.getInfo().getType().equals(type))
             throw new SemanticException(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type specified in function declaration.");
 
-        // VM CODE - push void
-        System.out.println(type);
+        // VM CODE - push void and return
         if (type.equals("void"))
             this.w.writeLater("push constant 0");
         this.w.writeLater("return");
@@ -445,16 +454,22 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseSubroutineCall() throws ParserException, SemanticException, IOException {
-        Map<String, String> results = parseClassScopeIdentifier();
+        ClassLevelIdentifier identifier = parseClassScopeIdentifier();
+        int offset = 0;
         //String type = results.get("type");
 
         parseSymbol("(");
         ArrayList<String> paramList = parseExpressionList();
-        checkSubroutineArguments(results.get("classIdentifier"), results.get("classMemberIdentifier"), paramList);
+        checkSubroutineArguments(identifier.getIdentifier(), identifier.getClassIdentifier(), paramList);
         parseSymbol(")");
 
         // VM CODE - call identifier
-        this.w.writeLater("call " +  + ".");
+        if ( identifier.getClassIdentifier().equals(this.globalSymbolTable.getName()))
+            if (this.globalSymbolTable.findSymbol(identifier.getIdentifier()).getKind() == Symbol.Kind.METHOD) {
+                offset = 1;
+            }
+
+        this.w.writeLater("call " + identifier.getClassIdentifier() + "." + identifier.getIdentifier() + " " + (paramList.size() + offset));
     }
 
     /**
@@ -466,6 +481,10 @@ public class CompilationEngine {
      */
     private ArrayList<String> parseExpressionList() throws ParserException, SemanticException, IOException {
         ArrayList<String> paramTypes = new ArrayList<>();
+
+        // VM CODE - insert 'this' statement
+        if (this.currentSubroutineTable.getKind() == Symbol.Kind.METHOD)
+            this.w.writeLater("push " + this.currentSubroutineTable.findSymbol("this").getKind().toString() + " " + this.currentSubroutineTable.findSymbol("this").getIndex());
 
         if (!this.t.peekNextToken().lexeme.equals(")")) {
             paramTypes.add(parseExpression());
@@ -488,17 +507,23 @@ public class CompilationEngine {
      */
     private String parseExpression() throws ParserException, SemanticException, IOException {
         String type;
-        Token token;
+        Token operator;
         type = parseRelationalExpression();
 
         while (this.t.peekNextToken().lexeme.equals("&")
                 || this.t.peekNextToken().lexeme.equals("|")) {
-            token = this.t.getNextToken();
+            operator = this.t.getNextToken();
 
-            if (!token.lexeme.equals("&") && !token.lexeme.equals("|"))
-                throw new ParserException(token.lineNumber, "Expected & or |. Got: " + token.lexeme);
+            if (!operator.lexeme.equals("&") && !operator.lexeme.equals("|"))
+                throw new ParserException(operator.lineNumber, "Expected & or |. Got: " + operator.lexeme);
 
             type = parseRelationalExpression();
+
+            // VM CODE - write & / | to vm
+            if (operator.lexeme.equals("&"))
+                this.w.writeLater("and");
+            else
+                this.w.writeLater("or");
         }
         return type;
     }
@@ -512,18 +537,26 @@ public class CompilationEngine {
      */
     private String parseRelationalExpression() throws ParserException, SemanticException, IOException {
         String type;
-        Token token;
+        Token operator;
         type = parseArithmeticExpression();
 
         while (this.t.peekNextToken().lexeme.equals("=")
                 || this.t.peekNextToken().lexeme.equals(">")
                 || this.t.peekNextToken().lexeme.equals("<")) {
-            token = this.t.getNextToken();
+            operator = this.t.getNextToken();
 
-            if (!token.lexeme.equals("=") && !token.lexeme.equals("<") && !token.lexeme.equals(">"))
-                throw new ParserException(token.lineNumber, "Expected =, < or >. Got: " + token.lexeme);
+            if (!operator.lexeme.equals("=") && !operator.lexeme.equals("<") && !operator.lexeme.equals(">"))
+                throw new ParserException(operator.lineNumber, "Expected =, < or >. Got: " + operator.lexeme);
 
             type = parseArithmeticExpression();
+
+            // VM CODE - write = / < / > to vm
+            if (operator.lexeme.equals("="))
+                this.w.writeLater("eq");
+            else if (operator.lexeme.equals("<"))
+                this.w.writeLater("lt");
+            else
+                this.w.writeLater("gt");
         }
 
         return type;
@@ -538,17 +571,23 @@ public class CompilationEngine {
      */
     private String parseArithmeticExpression() throws ParserException, SemanticException, IOException {
         String type;
-        Token token;
+        Token operator;
         type = parseTerm();
 
         while (this.t.peekNextToken().lexeme.equals("+")
                 || this.t.peekNextToken().lexeme.equals("-")) {
-            token = this.t.getNextToken();
+            operator = this.t.getNextToken();
 
-            if (!token.lexeme.equals("-") && !token.lexeme.equals("+"))
-                throw new ParserException(token.lineNumber + "Expected + or -. Got: " + token.lexeme);
+            if (!operator.lexeme.equals("-") && !operator.lexeme.equals("+"))
+                throw new ParserException(operator.lineNumber + "Expected + or -. Got: " + operator.lexeme);
 
             type = parseTerm();
+
+            // VM CODE - add or subtract using vm
+            if (operator.lexeme.equals("+"))
+                this.w.writeLater("add");
+            else
+                this.w.writeLater("sub");
         }
 
         return type;
@@ -563,19 +602,23 @@ public class CompilationEngine {
      */
     private String parseTerm() throws ParserException, SemanticException, IOException {
         String type;
-        Token token;
+        Token operator;
         type = parseFactor();
-
-
 
         while (this.t.peekNextToken().lexeme.equals("*")
                 || this.t.peekNextToken().lexeme.equals("/")) {
-            token = this.t.getNextToken();
+            operator = this.t.getNextToken();
 
-            if (!token.lexeme.equals("*") && !token.lexeme.equals("/"))
-                throw new ParserException(token.lineNumber + "Expected * or /. Got: " + token.lexeme);
+            if (!operator.lexeme.equals("*") && !operator.lexeme.equals("/"))
+                throw new ParserException(operator.lineNumber + "Expected * or /. Got: " + operator.lexeme);
 
             type = parseFactor();
+
+            // VM CODE - Write multiply / divide function calls
+            if (operator.lexeme.equals("*"))
+                this.w.writeLater("call Math.multiply 2");
+            else
+                this.w.writeLater("call Math.divide 2");
         }
         return type;
     }
@@ -588,9 +631,21 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private String parseFactor() throws ParserException, SemanticException, IOException {
-        if (this.t.peekNextToken().lexeme.equals("-") || this.t.peekNextToken().lexeme.equals("~"))
+        Token operator = this.t.peekNextToken();
+        String type;
+
+        if (operator.lexeme.equals("-") || operator.lexeme.equals("~"))
             this.t.getNextToken();
-        return parseOperand();
+
+        type =  parseOperand();
+
+        // VM CODE - write negate / not to vm
+        if (operator.lexeme.equals("-"))
+            this.w.writeLater("neg");
+        else if (operator.lexeme.equals("~"))
+            this.w.writeLater("not");
+
+        return type;
     }
 
     /**
@@ -635,11 +690,18 @@ public class CompilationEngine {
 
         // if identifier
         } if (token.type == Token.TokenTypes.identifier || token.lexeme.equals("this")) {
-            Map<String, String> results = parseClassScopeIdentifier();
-            type = results.get("type");
+            ClassLevelIdentifier identifier = parseClassScopeIdentifier();
+            type = identifier.getType();
 
-            if (!this.t.peekNextToken().lexeme.equals("."))
+            // VM CODE - Push identifiers
+            if (identifier.getClassIdentifier().equals(this.globalSymbolTable.getName())) {
+                Symbol symbol = this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier());
+                this.w.writeLater("push " + symbol.getKind().toString() + " " + symbol.getIndex());
+            } else if (token.lexeme.equals("this") && !this.t.peekNextToken().lexeme.equals(".") && this.currentSubroutineTable.getKind() == Symbol.Kind.CONSTRUCTOR) {
                 this.w.writeLater("push pointer 0");
+            } else {
+                this.w.writeLater("UNKNOWN");
+            }
 
             if (this.t.peekNextToken().lexeme.equals("[")) {
                 String returnType;
@@ -654,7 +716,7 @@ public class CompilationEngine {
             } else if (this.t.peekNextToken().lexeme.equals("(")) {
                 this.t.getNextToken();
                 ArrayList<String> paramTypes = parseExpressionList();
-                checkSubroutineArguments(results.get("classIdentifier"), results.get("classMemberIdentifier"), paramTypes);
+                checkSubroutineArguments(identifier.getIdentifier(), identifier.getClassIdentifier(), paramTypes);
                 parseSymbol(")");
             }
             return type;
@@ -813,7 +875,7 @@ public class CompilationEngine {
         return returnsOnAllCodePaths;
     }
 
-    private Map<String, String> parseClassScopeIdentifier() throws ParserException, SemanticException, IOException {
+    private ClassLevelIdentifier parseClassScopeIdentifier() throws ParserException, SemanticException, IOException {
         String type = "";
         Token identifier = parseIdentifier(false, false);
         Token classScopeIdentifier = null;
@@ -824,9 +886,10 @@ public class CompilationEngine {
         if (!isClassIdentifier) {
             if (identifier.lexeme.equals("this")) {
                 type = this.globalSymbolTable.getInfo().getType();
-            } else if (!this.currentSymbolTable.hierarchyContains(identifier.lexeme))
-                throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used before being declared.");
-            else if (!this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).isInitialized())
+            } else if (!this.currentSymbolTable.hierarchyContains(identifier.lexeme)) {
+                this.unresolvedIdentifiers.add(this.globalSymbolTable.getName() + "." + identifier.lexeme);
+                //throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used before being declared.");
+            } else if (!this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).isInitialized())
                 throw new SemanticException(identifier.lineNumber, "Identifier " + identifier.lexeme + " used before being initialized.");
             else
                 type = this.currentSymbolTable.findHierarchySymbol(identifier.lexeme).getType();
@@ -862,16 +925,16 @@ public class CompilationEngine {
             }
         }
 
-        HashMap<String, String> map = new HashMap<>();
-        map.put("classIdentifier", identifier.lexeme);
-        map.put("type", type);
-
+        String classScopeId;
         if (classScopeIdentifier != null)
-            map.put("classMemberIdentifier", classScopeIdentifier.lexeme);
+            classScopeId = classScopeIdentifier.lexeme;
+        // if a class scope identifier wasn't given, try to resolve the class name from the current class
+        else if (this.currentSymbolTable.hierarchyContains(identifier.lexeme))
+            classScopeId = this.globalSymbolTable.getName();
         else
-            map.put("classMemberIdentifier", null);
+            classScopeId = "Unknown";
 
-        return map;
+        return new ClassLevelIdentifier(classScopeId, identifier.lexeme, type);
     }
 
     private void checkSubroutineArguments(String identifier, String classMemberIdentifier, ArrayList<String> paramTypes) throws SemanticException, IOException {
@@ -900,9 +963,25 @@ public class CompilationEngine {
         }
     }
 
-    private void parseConditionalStatment() throws IOException, ParserException, SemanticException{
+    private void parseConditionalStatment() throws IOException, ParserException, SemanticException {
         parseSymbol("(");
         parseExpression();
         parseSymbol(")");
     }
+}
+
+class ClassLevelIdentifier {
+    private String classIdentifier;
+    private String identifier;
+    private String type;
+
+    public ClassLevelIdentifier(String classIdentifier, String identifier, String type) {
+        this.classIdentifier = classIdentifier;
+        this.identifier = identifier;
+        this.type = type;
+    }
+
+    public String getClassIdentifier() { return this.classIdentifier; }
+    public String getIdentifier() { return this.identifier; }
+    public String getType() { return this.type; }
 }
