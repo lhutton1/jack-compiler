@@ -13,8 +13,16 @@ class helloworld {
 
     method int getPerimeter() {
         var int p;
-        let p = side1 & side2;
-        return p;
+        var int t;
+        let p = 0;
+
+        if (p = 0) {
+            let t = 1;
+        } else {
+            let t = 0;
+        }
+
+        return t;
     }
 
     method void setPerimeter(int p) {

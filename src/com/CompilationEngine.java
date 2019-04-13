@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 
 //TODO
 // - make sure that function calls have the same number of arguments as the declaration.
@@ -23,6 +22,8 @@ public class CompilationEngine {
     private SymbolTable currentSymbolTable;
     private ArrayList<String> unresolvedIdentifiers;
 
+    private int labelCounter;
+
     /**
      * Create a new instance of the parser. This takes a stream of tokens from the
      * lexical analyzer and determines if the source code contains any grammatical errors.
@@ -36,6 +37,7 @@ public class CompilationEngine {
         this.globalSymbolTable = new SymbolTable();
         this.currentSymbolTable = this.globalSymbolTable;
         this.unresolvedIdentifiers = new ArrayList<>();
+        this.labelCounter = 0;
 
         //while (this.t.peekNextToken().type != Token.TokenTypes.EOF)
             this.parseClass();
@@ -356,21 +358,36 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private boolean parseIfStatement() throws ParserException, SemanticException, IOException {
+        int labelValue = this.labelCounter++;
         boolean returnsOnAllCodePaths = false;
         boolean elseReturnsOnAllCodePaths = false;
         this.currentSymbolTable = this.currentSymbolTable.addSymbol("", "if-stmt", Symbol.Kind.INNER, true).getSymbolTable();
 
         parseKeyword("if");
         parseConditionalStatment();
+
+        // VM CODE - write if statement code
+        this.w.writeLater("if-goto IF_TRUE" + labelValue);
+        this.w.writeLater("goto IF_FALSE" + labelValue);
+        this.w.writeLater("label IF_TRUE" + labelValue);
+
         parseSymbol("{");
         returnsOnAllCodePaths = parseStatementBody();
         parseSymbol("}");
+
+        // VM CODE - write if statement code
+        if (this.t.peekNextToken().lexeme.equals("else"))
+            this.w.writeLater("goto IF_END" + labelValue);
+        this.w.writeLater("label IF_FALSE" + labelValue);
 
         if (this.t.peekNextToken().lexeme.equals("else")) {
             this.t.getNextToken();
             parseSymbol("{");
             elseReturnsOnAllCodePaths = parseStatementBody();
             parseSymbol("}");
+
+            // VM CODE - write if statement code
+            this.w.writeLater("label IF_END" + labelValue);
         }
 
         // restore symbol table to parent
