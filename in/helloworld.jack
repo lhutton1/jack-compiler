@@ -16,9 +16,7 @@ class helloworld {
         var int t;
         let p = 0;
 
-        if (p = 0) {
-            let t = 1;
-        } else {
+        while (true) {
             let t = 0;
         }
 

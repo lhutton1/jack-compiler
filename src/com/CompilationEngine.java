@@ -403,13 +403,27 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseWhileStatement() throws ParserException, SemanticException, IOException {
+        int labelValue = this.labelCounter++;
         this.currentSymbolTable = this.currentSymbolTable.addSymbol("", "while-stmt", Symbol.Kind.INNER, true).getSymbolTable();
 
         parseKeyword("while");
+
+        // VM CODE - write while statement to vm
+        this.w.writeLater("label WHILE_EXP" + labelValue);
+
         parseConditionalStatment();
+
+        // VM CODE - write while statement to vm
+        this.w.writeLater("not");
+        this.w.writeLater("if-goto WHILE_END" + labelValue);
+
         parseSymbol("{");
         parseStatementBody();
         parseSymbol("}");
+
+        // VM CODE - write while statement to vm
+        this.w.writeLater("goto WHILE_EXP" + labelValue);
+        this.w.writeLater("label WHILE_END" + labelValue);
 
         // restore symbol table to parent
         this.currentSymbolTable = this.currentSymbolTable.getParent();
@@ -692,8 +706,8 @@ public class CompilationEngine {
                 type = "stringConstant";
             } else if (token.lexeme.equals("true") || token.lexeme.equals("false")) {
                 if (token.lexeme.equals("true")) {
-                    this.w.writeLater("push constant 1");
-                    this.w.writeLater("neg");
+                    this.w.writeLater("push constant 0");
+                    this.w.writeLater("not");
                 } else
                     this.w.writeLater("push constant 0");
 
