@@ -65,7 +65,7 @@ public class Tokenizer {
      */
     public Tokenizer(String filePath) throws IllegalArgumentException {
         File file;
-        lineNumber = 1;
+        this.lineNumber = 1;
         this.peeked = false;
 
         if (!getFileExtension(filePath).equals("jack"))
@@ -83,6 +83,9 @@ public class Tokenizer {
     }
 
     public Tokenizer(File file) throws IllegalArgumentException, FileNotFoundException {
+        this.lineNumber = 1;
+        this.peeked = false;
+
         this.br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(file),
                         Charset.forName("UTF-8"))

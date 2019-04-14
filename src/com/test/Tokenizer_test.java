@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class Tokenizer_test {
     public static void main(String[] args) throws IllegalArgumentException, IOException {
-        Tokenizer t = new Tokenizer("in/helloworld.jack");
+        Tokenizer t = new Tokenizer("in/Main.jack");
         Token token;
 
         while ((token = t.getNextToken()).type != Token.TokenTypes.EOF) {

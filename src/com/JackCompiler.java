@@ -59,6 +59,7 @@ public class JackCompiler {
             compilationEngine.run();
         } catch (ParserException e) {
             System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
+            e.printStackTrace(); //TODO remove.
             System.exit(1);
         } catch (SemanticException e) {
             System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
