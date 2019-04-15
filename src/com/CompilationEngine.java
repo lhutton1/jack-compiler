@@ -283,7 +283,7 @@ public class CompilationEngine {
                 returnsOnAllCodePaths = true;
                 break;
             default:
-                throw new ParserException(token.lineNumber + "Expected statement. Got: " + token.lexeme);
+                throw new ParserException(token.lineNumber, "Expected statement. Got: " + token.lexeme);
         }
 
         return returnsOnAllCodePaths;
@@ -321,12 +321,20 @@ public class CompilationEngine {
         if (this.t.peekNextToken().lexeme.equals("[")) {
             isArrayIdentifier = true;
             this.t.getNextToken();
+
             returnType = parseExpression();
 
-            if (!returnType.equals("int"))
-                throw new SemanticException(identifier.getLineNumber(), "Expression in array indices must always evaluate to an integer.");
+            this.w.writeLater("push " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getKind().toString() +
+                    " " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getIndex());
+            this.w.writeLater("add");
+
+            //if (!returnType.equals("int"))
+            //    throw new SemanticException(identifier.getLineNumber(), "Expression in array indices must always evaluate to an integer.");
 
             parseSymbol("]");
+
+            // VM CODE
+//
         }
 
 
@@ -345,7 +353,11 @@ public class CompilationEngine {
             this.w.writeLater("pop " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getKind().toString() +
                     " " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getIndex());
         } else {
-            this.w.writeLater("ARRAY CODE GOES HERE");
+            // VM CODE
+            this.w.writeLater("pop temp 0");
+            this.w.writeLater("pop pointer 1");
+            this.w.writeLater("push temp 0");
+            this.w.writeLater("pop that 0");
         }
 
         // the variable has now been initialized
@@ -502,8 +514,9 @@ public class CompilationEngine {
         // if method invocation in the same class
         int offset = 0;
         if (identifier.getClassIdentifier().equals(this.globalSymbolTable.getName()) || identifier.getClassIdentifier().equals("")) {
-            this.w.writeLater("push pointer 0");
-            offset = 1;
+            //this.w.writeLater("push pointer 0");
+            //offset = 1;
+            // TODO tidy this up once working
         } else {
             // check to see if the first identifier needs to be pushed
             if (identifier.getClassIdentifierSymbol() != null && this.currentSymbolTable.hierarchyContains(identifier.getClassIdentifierSymbol().getName())) {
@@ -759,6 +772,7 @@ public class CompilationEngine {
             Identifier identifier = parseIdentifier();
             type = identifier.getType();
             boolean isSubroutineCall = false;
+            boolean isArray = false;
 
             // VM CODE - Push identifiers
             // we need to determine if a function call has been made or just push the identifier
@@ -771,12 +785,22 @@ public class CompilationEngine {
             if (this.t.peekNextToken().lexeme.equals("[")) {
                 String returnType;
                 Token arrayIndexStart = this.t.getNextToken();
+                isArray = true;
                 returnType = parseExpression();
 
-                if (!returnType.equals("int"))
-                    throw new SemanticException(arrayIndexStart.lineNumber, "Expression in array indices must always evaluate to an integer.");
+                this.w.writeLater("push " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getKind().toString() +
+                        " " + this.currentSymbolTable.findHierarchySymbol(identifier.getIdentifier()).getIndex());
+                this.w.writeLater("add");
+
+                //if (!returnType.equals("int"))
+                //    throw new SemanticException(arrayIndexStart.lineNumber, "Expression in array indices must always evaluate to an integer.");
 
                 parseSymbol("]");
+
+                // VM CODE
+                this.w.writeLater("pop pointer 1");
+                this.w.writeLater("push that 0");
+
                 type = "Array";
             } else if (this.t.peekNextToken().lexeme.equals("(")) {
                 isSubroutineCall = true;
@@ -784,7 +808,7 @@ public class CompilationEngine {
             }
 
             // VM CODE
-            if (!isSubroutineCall) {
+            if (!isSubroutineCall && !isArray) {
                 // try to resolve the symbol based on it already being in the symbol table
                 if ((identifier.getClassIdentifier().equals("") || identifier.getClassIdentifier().equals(this.globalSymbolTable.getName()))
                         && this.currentSymbolTable.hierarchyContains(identifier.getIdentifier())) {
@@ -929,7 +953,7 @@ public class CompilationEngine {
                     if (declaredCheck)
                         throw new SemanticException(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
                     else {
-                        Identifier unresolvedIdentifier = new Identifier(this.globalSymbolTable.getName(), newToken.lexeme, newToken.lineNumber);
+                        Identifier unresolvedIdentifier = new Identifier(this.globalSymbolTable.getName(), newScopedToken.lexeme, newScopedToken.lineNumber);
                         this.unresolvedIdentifiers.add(unresolvedIdentifier);
                         return unresolvedIdentifier;
                     }
@@ -951,7 +975,6 @@ public class CompilationEngine {
                     if (declaredCheck)
                         throw new SemanticException(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
                     else {
-                        System.out.println("WE FOUNG" + newToken);
                         Identifier unresolvedIdentifier = new Identifier(this.currentSymbolTable.findHierarchySymbol(newToken.lexeme).getType(), newScopedToken.lexeme, newToken.lineNumber, null, this.currentSymbolTable.findHierarchySymbol(newToken.lexeme));
                         this.unresolvedIdentifiers.add(unresolvedIdentifier);
                         return unresolvedIdentifier;
