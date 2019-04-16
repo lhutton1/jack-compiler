@@ -89,6 +89,8 @@ public class SymbolTable {
 
             if (kind == Symbol.Kind.METHOD)
                 child.addSymbol("this", this.info.getType(), Symbol.Kind.POINTER, true);
+            else if (kind == Symbol.Kind.CONSTRUCTOR)
+                child.addSymbol("this", this.info.getType(), Symbol.Kind.POINTER, 0,true);
 
             newSymbol = insertSymbolWithCount(name, type, kind, initialized, child);
             child.info = newSymbol;
@@ -98,6 +100,10 @@ public class SymbolTable {
         // if child symbolMap table doesn't need creating
         newSymbol = insertSymbolWithCount(name, type, kind, initialized, null);
         return new AddedSymbol(null, newSymbol);
+    }
+
+    public void addSymbol(String name, String type, Symbol.Kind kind, int index, boolean initialized) {
+        symbolMap.put(name, new Symbol(name, type, kind, index, initialized));
     }
 
     public Symbol insertSymbolWithCount(String name, String type, Symbol.Kind kind, boolean initialized, SymbolTable child) {
