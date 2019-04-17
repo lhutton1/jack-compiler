@@ -155,15 +155,14 @@ public class Tokenizer {
         return nextCharacter;
     }
 
-
     /**
      * Strip any white space and comments that exist in the input stream.
      * @exception EOFException throw EOF exception if the end of the file has been reached unexpectedly
      */
     private void stripWhiteSpaceAndComments() throws EOFException {
-        // while comments or white space need to be removed loop.
+        // While comments or white space need to be removed loop.
         while (true) {
-            // strip comments /** or /!* only stopping when */ or EOF reached
+            // Strip comments /** or /!* only stopping when */ or EOF reached
             if (this.peek() == '/' && (this.peek(2) == '*' || this.peek(2) == '!')) {
                 while((this.peek() != '*' || this.peek(2) != '/')) {
                     if (this.peek() == -1)
@@ -173,13 +172,13 @@ public class Tokenizer {
                 this.read();
                 this.read();
 
-            // strip comments // only stopping when new line or EOF reached
+            // Strip comments // only stopping when new line or EOF reached
             } else if (this.peek() == '/' && this.peek(2) == '/') {
                 while (this.peek() != '\n' && this.peek() != -1) {
                     this.read();
                 }
 
-            // remove white space characters
+            // Remove white space characters
             } else if (Character.isWhitespace(this.peek())) {
                 this.read();
             } else {
@@ -204,7 +203,7 @@ public class Tokenizer {
      * @param type TokenType
      * @return Token
      */
-    private Token createToken(String lexeme, Token.TokenTypes type) {
+    private Token createToken(String lexeme, Token.Types type) {
         Token t = new Token();
         t.lexeme = lexeme;
         t.type = type;
@@ -220,7 +219,7 @@ public class Tokenizer {
     }
 
     /**
-     * If a lexeme begins with a letter or integer, then there may well
+     * If a lexeme begins with a letter or INTEGER, then there may well
      * be more than one character. This method finds the rest of the
      * characters and builds a lexeme. If the function runs into an EOF
      * character, something has gone wrong.
@@ -235,24 +234,24 @@ public class Tokenizer {
         boolean isIntegerToken = false;
         StringBuilder lexeme = new StringBuilder();
 
-        // if the current character is an integer then we need to
+        // If the current character is an integer then we need to
         // make sure that a letter placed after it is separated into a new token.
         if (Character.isDigit(c))
             isIntegerToken = true;
 
-        // iterate until delimiter found
+        // Iterate until delimiter found
         while (detectDelimiter((char)this.peek(), isStringConstant, isIntegerToken)) {
-            // ending string literal not found before EOF
+            // Ending string literal not found before EOF
             if ((c == -1 || c == 65535) && isStringConstant)
                 throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning string literal");
-            // possible grammar error but not dealt with yet
+            // Possible grammar error but not dealt with yet
             else if (c == -1 || c == 65535)
                 return lexeme.toString();
 
             lexeme.append((char)c);
             c = (char)this.read();
         }
-        // append last character and return lexeme
+        // Append last character and return lexeme
         lexeme.append((char)c);
         return lexeme.toString();
     }
@@ -262,7 +261,7 @@ public class Tokenizer {
      * detected or an identifier/keyword.
      * @param c the current character
      * @param isStringConstant determine whether to look for '"' or whitespace and symbols
-     * @param isIntegerToken determine if a character placed after integer is valid
+     * @param isIntegerToken determine if a character placed after INTEGER is valid
      * @return false if end of statement has not been reached
      */
     private boolean detectDelimiter(int c, boolean isStringConstant, boolean isIntegerToken) {
@@ -292,12 +291,14 @@ public class Tokenizer {
         this.stripWhiteSpaceAndComments();
         c = this.read();
 
-        if (c == -1) { // check if EOF token
-            t = createToken(String.valueOf((char) c), Token.TokenTypes.EOF);
+        // Check if EOF token
+        if (c == -1) {
+            t = createToken(String.valueOf((char) c), Token.Types.EOF);
             this.br.close();
-        } else if (c == '"') { // Check if string literal token
+        // Check if string literal token
+        } else if (c == '"') {
             c = this.read();
-            t = createToken(getMultiCharacterLexeme(c, true), Token.TokenTypes.stringConstant);
+            t = createToken(getMultiCharacterLexeme(c, true), Token.Types.STRING_CONSTANT);
             this.read(); // discard last '"'
         }
 
@@ -305,17 +306,20 @@ public class Tokenizer {
         else if (Character.isLetter(c) || c == '_') {
             t = createToken(getMultiCharacterLexeme(c));
             t.type = keywords.contains(t.lexeme) ?
-                    Token.TokenTypes.keyword : Token.TokenTypes.identifier;
+                    Token.Types.KEYWORD : Token.Types.IDENTIFIER;
         }
 
-        else if (Character.isDigit((char)c)) // Check if integer
-            t = createToken(getMultiCharacterLexeme(c), Token.TokenTypes.integer);
-        else if (symbols.contains((char)c)) // Check if symbol
-            t = createToken(String.valueOf((char)c), Token.TokenTypes.symbol);
-        else // Invalid symbol not supported by the jack compiler
-            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved symbol \"" + (char)c + "\" found.");
+        // Check if integer
+        else if (Character.isDigit((char)c))
+            t = createToken(getMultiCharacterLexeme(c), Token.Types.INTEGER);
+        // Check if symbol
+        else if (symbols.contains((char)c))
+            t = createToken(String.valueOf((char)c), Token.Types.SYMBOL);
+        // Invalid symbol not supported by the jack compiler
+        else
+            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved SYMBOL \"" + (char)c + "\" found.");
 
-        // store current token to enable peek to function
+        // Store current token to enable peek to function
         this.peeked = false;
         this.previousToken = t;
         return t;

@@ -73,17 +73,17 @@ public class SymbolTable {
 
     /**
      * Add a new symbolMap to the symbolMap table.
-     * @param name the name of the symbolMap (identifier)
+     * @param name the name of the symbolMap (IDENTIFIER)
      * @param type the type of the symbolMap (i.e. the object/type that it returns or stores)
      * @param kind the kind of symbolMap (i.e. var, argument, static, field, subroutine, class)
      * @param initialized whether or not the symbolMap has been initialized.
      * @return the symbolMap table that has been created if needed.
      */
-    public AddedSymbol addSymbol(String name, String type, Symbol.Kind kind, boolean initialized) {
+    public ChildSymbol addSymbol(String name, String type, Symbol.Kind kind, boolean initialized) {
         Symbol newSymbol;
         SymbolTable child;
 
-        // we need to create a new symbol table if we have a method or inner statement (e.g. if statement)
+        // we need to create a new SYMBOL table if we have a method or inner statement (e.g. if statement)
         if (kind == Symbol.Kind.METHOD || kind == Symbol.Kind.CONSTRUCTOR  || kind == Symbol.Kind.FUNCTION || kind == Symbol.Kind.INNER) {
             child = new SymbolTable(this);
 
@@ -94,12 +94,12 @@ public class SymbolTable {
 
             newSymbol = insertSymbolWithCount(name, type, kind, initialized, child);
             child.info = newSymbol;
-            return new AddedSymbol(child, newSymbol);
+            return new ChildSymbol(child, newSymbol);
         }
 
         // if child symbolMap table doesn't need creating
         newSymbol = insertSymbolWithCount(name, type, kind, initialized, null);
-        return new AddedSymbol(null, newSymbol);
+        return new ChildSymbol(null, newSymbol);
     }
 
     public void addSymbol(String name, String type, Symbol.Kind kind, int index, boolean initialized) {
@@ -138,7 +138,7 @@ public class SymbolTable {
 
 
     /**
-     * Check if the symbolMap table contains the provided identifier locally.
+     * Check if the symbolMap table contains the provided IDENTIFIER locally.
      * @param name the name of the symbolMap.
      * @return boolean, whether the symbolMap table contains the symbolMap.
      */
@@ -148,7 +148,7 @@ public class SymbolTable {
 
 
     /**
-     * Check if the current symbolMap table or and parents contain the identifier.
+     * Check if the current symbolMap table or and parents contain the IDENTIFIER.
      * @param name the name of the symbolMap.
      * @return boolean, whether the symbolMap is contained by the current symbolMap table or any
      * higher up in the hierarchy.
@@ -225,17 +225,15 @@ public class SymbolTable {
     }
 }
 
-class AddedSymbol {
+class ChildSymbol {
     private SymbolTable newSymbolTable;
     private Symbol newSymbol;
 
-    public AddedSymbol(SymbolTable newSymbolTable, Symbol newSymbol) {
+    public ChildSymbol(SymbolTable newSymbolTable, Symbol newSymbol) {
         this.newSymbolTable = newSymbolTable;
         this.newSymbol = newSymbol;
     }
 
     public SymbolTable getSymbolTable() { return this.newSymbolTable; }
     public Symbol getSymbol() { return this.newSymbol; }
-    public void setSymbolTable(SymbolTable symbolTable) { this.newSymbolTable = symbolTable; }
-    public void setSymbol(Symbol symbol) { this.newSymbol = symbol; }
 }

@@ -35,7 +35,7 @@ public class Parser_With_Tree_Output {
         root.element = x.getRootElement();
         this.parent = root;
 
-        while (this.t.peekNextToken().type != Token.TokenTypes.EOF) {
+        while (this.t.peekNextToken().type != Token.Types.EOF) {
             try {
                 this.parent = root;
                 this.parseClass();
@@ -49,7 +49,7 @@ public class Parser_With_Tree_Output {
 
     /**
      * Parse a class object.
-     * classDeclaration → class identifier { {memberDeclaration} }
+     * classDeclaration → class IDENTIFIER { {memberDeclaration} }
      *
      * @throws ParserException, IOException thrown if the parser runs into a syntax error and must stop.
      */
@@ -95,7 +95,7 @@ public class Parser_With_Tree_Output {
 
     /**
      * Parse the variable declaration section
-     * classVarDeclaration → (static | field) type identifier {, identifier} ;
+     * classVarDeclaration → (static | field) type IDENTIFIER {, IDENTIFIER} ;
      *
      * @throws ParserException, IOException thrown if the parser runs into a syntax error and must stop.
      */
@@ -104,11 +104,11 @@ public class Parser_With_Tree_Output {
         ASTNode elmtParent = parent.addChild(newASTNode("variableDeclaration", ""));
         this.parent = elmtParent;
 
-        // look for static or field keyword
+        // look for static or field KEYWORD
         if (!token.lexeme.equals("static") && !token.lexeme.equals("field"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected static or field. Got: " + token.lexeme);
         else
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
 
         parseVariableDeclaration();
         this.parent = elmtParent; // restore previous parent
@@ -116,7 +116,7 @@ public class Parser_With_Tree_Output {
 
     /**
      * Parse the type declaration for a variable.
-     * type → int | char | boolean | identifier.
+     * type → int | char | boolean | IDENTIFIER.
      *
      * @throws ParserException, IOException thrown if the parser runs into a syntax error and must stop.
      */
@@ -124,7 +124,7 @@ public class Parser_With_Tree_Output {
         Token token = this.t.getNextToken();
 
         if (token.lexeme.equals("int") || token.lexeme.equals("char")
-                || token.lexeme.equals("boolean") || token.type == Token.TokenTypes.identifier)
+                || token.lexeme.equals("boolean") || token.type == Token.Types.IDENTIFIER)
             parent.addChild(newASTNode("type", token.lexeme));
         else
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected type declaration. Got: " + token.lexeme);
@@ -132,28 +132,28 @@ public class Parser_With_Tree_Output {
 
     /**
      * Parse the subroutine declaration section.
-     * subroutineDeclaration → (constructor | function | method) (type|void) identifier (paramList) subroutineBody
+     * subroutineDeclaration → (constructor | function | method) (type|void) IDENTIFIER (paramList) subroutineBody
      */
     private void parseSubRoutineDeclaration() throws ParserException, IOException {
         Token token = this.t.getNextToken();
         ASTNode elmtParent = parent.addChild(newASTNode("subroutineDeclaration", ""));
         this.parent = elmtParent;
 
-        // look for function keyword
+        // look for function KEYWORD
         if (!token.lexeme.equals("constructor") && !token.lexeme.equals("function") && !token.lexeme.equals("method"))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected function declaration. Got: " + token.lexeme);
         else
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
 
-        // look for type/void keyword
+        // look for type/void KEYWORD
         if (this.t.peekNextToken().lexeme.equals("void")) {
             token = this.t.getNextToken();
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
         } else {
             parseType();
         }
 
-        // look for identifier
+        // look for IDENTIFIER
         parseIdentifier();
         parseSymbol("(");
 
@@ -174,7 +174,7 @@ public class Parser_With_Tree_Output {
     }
 
     /**
-     * paramList → type identifier {, type identifier} | ε
+     * paramList → type IDENTIFIER {, type IDENTIFIER} | ε
      * @throws ParserException, IOException
      */
     private void parseParamList() throws ParserException, IOException {
@@ -246,7 +246,7 @@ public class Parser_With_Tree_Output {
     }
 
     /**
-     * varDeclarStatement → var type identifier { , identifier } ;
+     * varDeclarStatement → var type IDENTIFIER { , IDENTIFIER } ;
      * @throws ParserException, IOException
      */
     private void parseVarDeclarStatement() throws ParserException, IOException {
@@ -260,7 +260,7 @@ public class Parser_With_Tree_Output {
     }
 
     /**
-     * letStatement → let identifier [ [ expression ] ] = expression ;
+     * letStatement → let IDENTIFIER [ [ expression ] ] = expression ;
      * @throws ParserException, IOException
      */
     private void parseLetStatement() throws ParserException, IOException {
@@ -273,7 +273,7 @@ public class Parser_With_Tree_Output {
 
         if (this.t.peekNextToken().lexeme.equals("[")) {
             this.t.getNextToken();
-            parent.addChild(newASTNode("symbol", "["));
+            parent.addChild(newASTNode("SYMBOL", "["));
             parseExpression();
             parseSymbol("]");
             token = this.t.getNextToken();
@@ -306,7 +306,7 @@ public class Parser_With_Tree_Output {
 
         if (this.t.peekNextToken().lexeme.equals("else")) {
             this.t.getNextToken();
-            parent.addChild(newASTNode("keyword", "else"));
+            parent.addChild(newASTNode("KEYWORD", "else"));
             parseSymbol("{");
             parseStatementBody(elmtParent);
             parseSymbol("}");
@@ -366,7 +366,7 @@ public class Parser_With_Tree_Output {
     }
 
     /**
-     * subroutineCall → identifier [ . identifier ] ( expressionList ) ;
+     * subroutineCall → IDENTIFIER [ . IDENTIFIER ] ( expressionList ) ;
      * @throws ParserException, IOException
      */
     private void parseSubroutineCall() throws ParserException, IOException {
@@ -377,7 +377,7 @@ public class Parser_With_Tree_Output {
         parseIdentifier();
         if (this.t.peekNextToken().lexeme.equals(".")) {
             this.t.getNextToken();
-            parent.addChild(newASTNode("symbol", "."));
+            parent.addChild(newASTNode("SYMBOL", "."));
             parseIdentifier();
         }
 
@@ -403,7 +403,7 @@ public class Parser_With_Tree_Output {
                 // restore previous parent
                 this.parent = elmtParent;
 
-                parent.addChild(newASTNode("symbol", ","));
+                parent.addChild(newASTNode("SYMBOL", ","));
                 this.t.getNextToken();
                 parseExpression();
             }
@@ -432,9 +432,9 @@ public class Parser_With_Tree_Output {
 
             // look for & or |
             if (token.lexeme.equals("&"))
-                parent.addChild(newASTNode("symbol", "&"));
+                parent.addChild(newASTNode("SYMBOL", "&"));
             else if (token.lexeme.equals("|"))
-                parent.addChild(newASTNode("symbol", "|"));
+                parent.addChild(newASTNode("SYMBOL", "|"));
             else
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected & or |. Got: " + token.lexeme);
 
@@ -467,11 +467,11 @@ public class Parser_With_Tree_Output {
 
             // look for =, <, >
             if (token.lexeme.equals("="))
-                parent.addChild(newASTNode("symbol", "="));
+                parent.addChild(newASTNode("SYMBOL", "="));
             else if (token.lexeme.equals("<"))
-                parent.addChild(newASTNode("symbol", "<"));
+                parent.addChild(newASTNode("SYMBOL", "<"));
             else if (token.lexeme.equals(">"))
-                parent.addChild(newASTNode("symbol", ">"));
+                parent.addChild(newASTNode("SYMBOL", ">"));
             else
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected =, < or >. Got: " + token.lexeme);
 
@@ -502,9 +502,9 @@ public class Parser_With_Tree_Output {
 
             // look for +, -
             if (token.lexeme.equals("-"))
-                parent.addChild(newASTNode("symbol", "-"));
+                parent.addChild(newASTNode("SYMBOL", "-"));
             else if (token.lexeme.equals("+"))
-                parent.addChild(newASTNode("symbol", "+"));
+                parent.addChild(newASTNode("SYMBOL", "+"));
             else
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected + or -. Got: " + token.lexeme);
 
@@ -538,9 +538,9 @@ public class Parser_With_Tree_Output {
 
             // look for *, /
             if (token.lexeme.equals("*"))
-                parent.addChild(newASTNode("symbol", "*"));
+                parent.addChild(newASTNode("SYMBOL", "*"));
             else if (token.lexeme.equals("/"))
-                parent.addChild(newASTNode("symbol", "/"));
+                parent.addChild(newASTNode("SYMBOL", "/"));
             else
                 throw new ParserException("Error, line: " + token.lineNumber + ", Expected * or /. Got: " + token.lexeme);
 
@@ -562,10 +562,10 @@ public class Parser_With_Tree_Output {
 
         // look for -, ~
         if (this.t.peekNextToken().lexeme.equals("-")) {
-            parent.addChild(newASTNode("symbol", "*"));
+            parent.addChild(newASTNode("SYMBOL", "*"));
             this.t.getNextToken();
         } else if (this.t.peekNextToken().lexeme.equals("~")) {
-            parent.addChild(newASTNode("symbol", "/"));
+            parent.addChild(newASTNode("SYMBOL", "/"));
             this.t.getNextToken();
         }
 
@@ -576,7 +576,7 @@ public class Parser_With_Tree_Output {
     }
 
     /**
-     * operand → integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
+     * operand → integerConstant | IDENTIFIER [.IDENTIFIER ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
      * @throws ParserException, IOException
      */
     private void parseOperand() throws ParserException, IOException {
@@ -584,14 +584,14 @@ public class Parser_With_Tree_Output {
         ASTNode elmtParent = parent.addChild(newASTNode("operand", ""));
         this.parent = elmtParent;
 
-        if (token.type == Token.TokenTypes.integer)
+        if (token.type == Token.Types.INTEGER)
             parent.addChild(newASTNode("integerConstant", token.lexeme));
-        else if (token.type == Token.TokenTypes.identifier) {
-            parent.addChild(newASTNode("identifier", token.lexeme));
+        else if (token.type == Token.Types.IDENTIFIER) {
+            parent.addChild(newASTNode("IDENTIFIER", token.lexeme));
 
             if (this.t.peekNextToken().lexeme.equals(".")) {
                 this.t.getNextToken();
-                parent.addChild(newASTNode("symbol", "."));
+                parent.addChild(newASTNode("SYMBOL", "."));
                 parseIdentifier();
             }
 
@@ -599,31 +599,31 @@ public class Parser_With_Tree_Output {
                 token = this.t.getNextToken();
 
                 if (token.lexeme.equals("[")) {
-                    parent.addChild(newASTNode("symbol", "["));
+                    parent.addChild(newASTNode("SYMBOL", "["));
                     parseExpression();
                     parseSymbol("]");
                 } else {
-                    parent.addChild(newASTNode("symbol", "("));
+                    parent.addChild(newASTNode("SYMBOL", "("));
                     parseExpressionList();
                     this.parent = elmtParent; // restore previous parent
                     parseSymbol(")");
                 }
             }
         } else if (token.lexeme.equals("(")) {
-            parent.addChild(newASTNode("symbol", "("));
+            parent.addChild(newASTNode("SYMBOL", "("));
             parseExpression();
             this.parent = elmtParent; // restore previous parent
             parseSymbol(")");
-        } else if (token.type == Token.TokenTypes.stringConstant)
+        } else if (token.type == Token.Types.STRING_CONSTANT)
             parent.addChild(newASTNode("stringLiteral", token.lexeme));
         else if (token.lexeme.equals("true"))
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
         else if (token.lexeme.equals("false"))
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
         else if (token.lexeme.equals("null"))
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
         else if (token.lexeme.equals("this"))
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
 
         // restore previous parent
         this.parent = elmtParent;
@@ -638,16 +638,16 @@ public class Parser_With_Tree_Output {
         if (!token.lexeme.equals(symbol))
             throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + symbol + ". Got: " + token.lexeme);
         else
-            parent.addChild(newASTNode("symbol", token.lexeme));
+            parent.addChild(newASTNode("SYMBOL", token.lexeme));
     }
 
     private void parseKeyword(String keyword) throws ParserException, IOException {
         Token token = this.t.getNextToken();
 
         if (!token.lexeme.equals(keyword))
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + keyword + "keyword. Got: " + token.lexeme);
+            throw new ParserException("Error, line: " + token.lineNumber + ", Expected " + keyword + "KEYWORD. Got: " + token.lexeme);
         else
-            parent.addChild(newASTNode("keyword", token.lexeme));
+            parent.addChild(newASTNode("KEYWORD", token.lexeme));
     }
 
     /**
@@ -658,10 +658,10 @@ public class Parser_With_Tree_Output {
      */
     private void parseIdentifier() throws ParserException, IOException {
         Token token = this.t.getNextToken();
-        if (token.type != Token.TokenTypes.identifier)
-            throw new ParserException("Error, line: " + token.lineNumber + ", Expected identifier. Got: " + token.lexeme);
+        if (token.type != Token.Types.IDENTIFIER)
+            throw new ParserException("Error, line: " + token.lineNumber + ", Expected IDENTIFIER. Got: " + token.lexeme);
         else
-            parent.addChild(newASTNode("identifier", token.lexeme));
+            parent.addChild(newASTNode("IDENTIFIER", token.lexeme));
     }
 
     private void parseVariableDeclaration() throws ParserException, IOException {
@@ -669,9 +669,9 @@ public class Parser_With_Tree_Output {
         parseType();
         parseIdentifier();
 
-        // look for no or more instances of ', identifier'
+        // look for no or more instances of ', IDENTIFIER'
         while ((token = this.t.peekNextToken()).lexeme.equals(",")) {
-            parent.addChild(newASTNode("symbol", token.lexeme));
+            parent.addChild(newASTNode("SYMBOL", token.lexeme));
             this.t.getNextToken();
             parseIdentifier();
         }

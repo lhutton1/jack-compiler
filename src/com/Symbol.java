@@ -45,13 +45,13 @@ public class Symbol {
     }
 
     /**
-     * Create a new symbol.
-     * @param name name of the symbol.
-     * @param type type that the symbol stores/returns.
-     * @param kind the kind of symbol.
-     * @param index the index that the symbol is placed at.
-     * @param initialized whether the symbol is initialized
-     * @param childSymbolTable the child symbol table if it's kind is class or subroutine.
+     * Create a new SYMBOL.
+     * @param name name of the SYMBOL.
+     * @param type type that the SYMBOL stores/returns.
+     * @param kind the kind of SYMBOL.
+     * @param index the index that the SYMBOL is placed at.
+     * @param initialized whether the SYMBOL is initialized
+     * @param childSymbolTable the child SYMBOL table if it's kind is class or subroutine.
      */
     public Symbol(String name, String type, Kind kind, int index, boolean initialized, SymbolTable childSymbolTable) {
         this.name = name;

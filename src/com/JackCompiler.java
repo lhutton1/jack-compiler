@@ -40,8 +40,6 @@ public class JackCompiler {
                 compile(file);
             }
         }
-
-        System.out.println("Compilation successfully completed!");
     }
 
     /**
@@ -56,15 +54,23 @@ public class JackCompiler {
     private static void compile(File file) {
         try {
             CompilationEngine compilationEngine = new CompilationEngine(file);
-            compilationEngine.run();
-        } catch (ParserException e) {
-            System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
-            e.printStackTrace(); //TODO remove.
-            System.exit(1);
-        } catch (SemanticException e) {
-            System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
-            e.printStackTrace(); //TODO remove.
-            System.exit(1);
+
+            // Try running the compiler
+            try {
+                compilationEngine.run();
+            } catch (ParserException e) {
+                if (compilationEngine.getSemanticStatus()) {
+                    System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
+                    e.printStackTrace(); //TODO remove.
+                }
+
+                System.exit(1);
+            } catch (SemanticException e) {
+                //System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
+                //e.printStackTrace(); //TODO remove.
+                //System.exit(1);
+            }
+
         } catch (IOException e) {
             System.err.println("[IO Error] " + e.getMessage());
             System.exit(1);

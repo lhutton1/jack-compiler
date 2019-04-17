@@ -10,7 +10,7 @@ public class Tokenizer_test {
         Tokenizer t = new Tokenizer("in/Main.jack");
         Token token;
 
-        while ((token = t.getNextToken()).type != Token.TokenTypes.EOF) {
+        while ((token = t.getNextToken()).type != Token.Types.EOF) {
             System.out.println(token);
         }
     }
