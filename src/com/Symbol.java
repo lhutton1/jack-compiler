@@ -1,13 +1,23 @@
 package com;
 
+/**
+ * A symbol is used to represent an identifier that is part of the symbol table.
+ * It will be declared in the symbol table in which it belongs.
+ */
 public class Symbol {
-    private String name;
-    private String type;
-    private Kind kind;
-    private SymbolTable childSymbolTable;
-    private int index;
-    private boolean initialized;
+    private String name;                    // The name of the symbol.
+    private String type;                    // The type that the symbol represents.
+    private Kind kind;                      // The kind that the symbol represents i.e. static, field, etc.
+    private int index;                      // The index that the symbol is located at - for vm code.
 
+    private SymbolTable childSymbolTable;   // If the symbol is a subroutine of if/while statement it will have a child symbol table.
+    private boolean initialized;            // Whether or not the symbol has been initialized, for semantic analysis.
+
+
+    /**
+     * The kind of the symbol represents how the
+     * identifier was declared in the first place.
+     */
     public enum Kind {
         STATIC("static"),
         FIELD("this"),
@@ -22,14 +32,23 @@ public class Symbol {
 
         private String name;
 
-        Kind(String name) {
-            this.name = name;
-        }
+        /**
+         * Associate the argument with the name field.
+         * @param name the name assigned to enum value.
+         */
+        Kind(String name) { this.name = name; }
 
-        public String getName() {
-            return name;
-        }
+        /**
+         * Get the name assigned to the enum.
+         * @return the name.
+         */
+        public String getName() { return name; }
 
+        /**
+         * Convert a string to the relevant enum.
+         * @param text the text to convert to enum.
+         * @return the kind that the text represents.
+         */
         public static Kind fromString(String text) {
             for (Kind kind : Kind.values()) {
                 if (kind.getName().equals(text))
@@ -45,13 +64,13 @@ public class Symbol {
     }
 
     /**
-     * Create a new SYMBOL.
-     * @param name name of the SYMBOL.
-     * @param type type that the SYMBOL stores/returns.
-     * @param kind the kind of SYMBOL.
-     * @param index the index that the SYMBOL is placed at.
-     * @param initialized whether the SYMBOL is initialized
-     * @param childSymbolTable the child SYMBOL table if it's kind is class or subroutine.
+     * Create a new symbol.
+     * @param name name of the symbol.
+     * @param type type that the symbol stores/returns.
+     * @param kind the kind of symbol.
+     * @param index the index that the symbol is placed at.
+     * @param initialized whether the symbol is initialized.
+     * @param childSymbolTable the child symbol table if it's kind is class or subroutine.
      */
     public Symbol(String name, String type, Kind kind, int index, boolean initialized, SymbolTable childSymbolTable) {
         this.name = name;
@@ -62,22 +81,34 @@ public class Symbol {
         this.childSymbolTable = childSymbolTable;
     }
 
+    /**
+     * Create a new symbol that doesnt have a child symbol table
+     * @param name name of the symbol.
+     * @param type type that the symbol stores/returns.
+     * @param kind the kind of symbol.
+     * @param index the index that the symbol is placed at.
+     * @param initialized whether the symbol is initialized.
+     */
     public Symbol(String name, String type, Kind kind, int index, boolean initialized) {
         this(name, type, kind, index, initialized,null);
     }
 
+    /**
+     * Getters.
+     */
     public String getName() { return this.name; }
     public String getType() { return this.type; }
     public Kind getKind() { return this.kind; }
     public SymbolTable getChildSymbolTable() { return this.childSymbolTable; }
     public int getIndex() { return this.index; }
 
+    public boolean isInitialized() { return this.initialized; }
+
+    /**
+     * Setters.
+     */
     public void setInitialized(boolean initialized) {
         this.initialized = initialized;
-    }
-
-    public boolean isInitialized() {
-        return initialized;
     }
 
     @Override

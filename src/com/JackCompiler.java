@@ -59,18 +59,10 @@ public class JackCompiler {
             try {
                 compilationEngine.run();
             } catch (ParserException e) {
-                if (compilationEngine.getSemanticStatus()) {
-                    System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
-                    e.printStackTrace(); //TODO remove.
-                }
-
+                compilationEngine.deleteVMCode();
+                System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
                 System.exit(1);
-            } catch (SemanticException e) {
-                //System.err.println("[Semantic error] Line " + e.getLineNumber() + ": " + e.getMessage());
-                //e.printStackTrace(); //TODO remove.
-                //System.exit(1);
             }
-
         } catch (IOException e) {
             System.err.println("[IO Error] " + e.getMessage());
             System.exit(1);

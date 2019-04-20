@@ -18,7 +18,7 @@ public class Token {
     }
 
     public String lexeme;       // The text stored in the identifier
-    public Types type;     // The type that the identifier represents i.e. keyword, symbol, ...
+    public Types type;          // The type that the identifier represents i.e. keyword, symbol, ...
     public int lineNumber;      // The line number that the token is located at
 
     @Override
