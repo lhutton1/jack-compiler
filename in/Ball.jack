@@ -8,16 +8,21 @@
 class Ball {
     field int x;
 
+    constructor Ball main() {
+        var int x;
+        let x = 1;
+        return this;
+        let x = 3;
+    }
+
     method int getX() {
-        return this.x;
+        let x = 3;
+        return x;
     }
 
-    function int getX2() {
-        //return getX();
-    }
-
-    function void main() {
-        //do getX();
+    function void tst() {
+        //do main();
+        return;
     }
 }
 

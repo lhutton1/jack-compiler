@@ -1,7 +1,5 @@
 package com;
 
-import sun.jvm.hotspot.debugger.cdbg.Sym;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -9,11 +7,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 //TODO
-// - vm code for do statements with functions outside of the class.
-// - functions declared after calling function are accepted.
-// - type checking on return statements and other things need checking.
-// - add checks to make sure method not called as function/constructor and visa versa.
-// - resolve unresolved identifiers
 // - change how accessing the identifier information works
 
 /**
@@ -21,7 +14,7 @@ import java.util.LinkedList;
  * vm code of a .jack source file.
  */
 public class CompilationEngine {
-    private final boolean DEBUGGING = true;                 // If true print the symbol table and unresolved identifiers at the end of compilation.
+    private final boolean DEBUGGING = false;                // If true print the symbol table and unresolved identifiers at the end of compilation.
     private final boolean SEMANTIC_ANALYSIS = true;         // If true perform the semantic analysis checks on the source code.
 
     private final Tokenizer t;                              // Tokenizer object that reads from a source file.
@@ -102,6 +95,11 @@ public class CompilationEngine {
             System.err.println("[Semantic error] Line " + lineNumber + ": " + msg);
             semanticStatus = false;
         }
+    }
+
+    private void semanticWarning(int lineNumber, String msg) {
+        if (SEMANTIC_ANALYSIS)
+            System.err.println("[Semantic warning] Line " + lineNumber + ": " + msg);
     }
 
 
@@ -599,7 +597,7 @@ public class CompilationEngine {
         // SEMANTIC ANALYSIS - Check for unreachable code
         Token unreachable = this.t.peekNextToken();
         if (!unreachable.lexeme.equals("}"))
-            semanticError(unreachable.lineNumber, "Unreachable code will not be executed.");
+            semanticWarning(unreachable.lineNumber, "Unreachable code will not be executed.");
     }
 
     /**
