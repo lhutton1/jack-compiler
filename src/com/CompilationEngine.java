@@ -2,27 +2,23 @@ package com;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-
-//TODO
-// - change how accessing the identifier information works
 
 /**
  * The compilation engine parses, semantically analyses and writes the
  * vm code of a .jack source file.
  */
 public class CompilationEngine {
-    private final boolean DEBUGGING = false;                // If true print the symbol table and unresolved identifiers at the end of compilation.
+    private final boolean DEBUGGING = true;                 // If true print the symbol table and unresolved identifiers at the end of compilation.
     private final boolean SEMANTIC_ANALYSIS = true;         // If true perform the semantic analysis checks on the source code.
 
     private final Tokenizer t;                              // Tokenizer object that reads from a source file.
     private final VMWriter w;                               // Object that writes vm code to file.
 
-    private SymbolTable globalSymbolTable;                  // The symbol table for the class.
-    private SymbolTable currentSubroutineTable;             // The symbol table of the current subroutine.
-    private SymbolTable currentSymbolTable;                 // The symbol table of the current scope.
+    private SymbolTable globalSt;                           // The symbol table for the class.
+    private SymbolTable subSt;                              // The symbol table of the current subroutine.
+    private SymbolTable cSt;                                // The symbol table of the current scope.
 
     private LinkedList<Identifier> unresolvedIdentifiers;    // Identifiers that couldn't be resolved and need to be checked at the end.
     private int labelCounter;                               // Counter used to generate a unique label id for if and while statements.
@@ -66,7 +62,7 @@ public class CompilationEngine {
 
         // Only run if no semantic errors have been output
         if (DEBUGGING) {
-            this.globalSymbolTable.printTables();
+            this.globalSt.printTables();
             System.out.println("Unresolved identifiers: " + this.unresolvedIdentifiers + " <to be solved by semantic analysis>");
         }
 
@@ -80,7 +76,7 @@ public class CompilationEngine {
         try {
             this.w.close();
         } catch (IOException e) {
-            System.err.println("The output file could not be closed");
+            System.err.println("The output file could not be closed.");
             System.exit(1);
         }
     }
@@ -97,22 +93,33 @@ public class CompilationEngine {
         }
     }
 
+    /**
+     * Outputs a semantic warning.
+     * Note: This will not stop the VMWriter from outputting the vm code.
+     * @param lineNumber the line number the error occurred at.
+     * @param msg the message that will be output, providing the information to the user.
+     */
     private void semanticWarning(int lineNumber, String msg) {
         if (SEMANTIC_ANALYSIS)
             System.err.println("[Semantic warning] Line " + lineNumber + ": " + msg);
     }
 
-
+    /**
+     * Resolve identifier that are yet to be resolved after the compilation has finished.
+     * Note: this happens when a function is used before it has been declared or if a function
+     * is part of another class.
+     * @throws IOException thrown if the tokenizer runs into an issue reading the source code.
+     */
     private void resolveIdentifiers() throws IOException {
         for(Iterator<Identifier> iter = this.unresolvedIdentifiers.iterator(); iter.hasNext(); ) {
             Identifier id = iter.next();
 
-            if (id.getClassIdentifier().equals(this.globalSymbolTable.getName())) {
-                if (!this.globalSymbolTable.contains(id.getIdentifier())) {
+            if (id.getCIdName().equals(this.globalSt.getName())) {
+                if (!this.globalSt.contains(id.getIdName())) {
                     System.out.println("here");
-                    semanticError(id.getLineNumber(), "Identifier " + id.getIdentifier() + " used without previously declaring.");
+                    semanticError(id.getLineNumber(), "Identifier " + id.getIdName() + " used without previously declaring.");
                 } else {
-                    id.setIdentifierSymbol(this.globalSymbolTable.findSymbol(id.getIdentifier()));
+                    id.setId(this.globalSt.findSymbol(id.getIdName()));
                     checkSubroutineArguments(id, id.getArguments());
                 }
 
@@ -145,8 +152,8 @@ public class CompilationEngine {
 
         // After the class name has been retrieved we can set up the symbol table
         Symbol rootSymbol = new Symbol(identifier.lexeme, identifier.lexeme, Symbol.Kind.CLASS, 0, true);
-        this.globalSymbolTable = new SymbolTable(null, rootSymbol);
-        this.currentSymbolTable = this.globalSymbolTable;
+        this.globalSt = new SymbolTable(null, rootSymbol);
+        this.cSt = this.globalSt;
 
         parseSymbol("{");
 
@@ -239,18 +246,18 @@ public class CompilationEngine {
         identifier = this.t.getNextToken();
 
         // Check for redeclaration and add symbol
-        if (this.currentSymbolTable.contains(identifier.lexeme))
+        if (this.cSt.contains(identifier.lexeme))
             throw new ParserException(identifier.lineNumber, "Redeclaration of identifier: " + identifier.lexeme);
         else {
-            ChildSymbol newFunctionSymbol = this.currentSymbolTable.addSymbol(
+            ChildSymbol newFunctionSymbol = this.cSt.addSymbol(
                     identifier.lexeme,
                     type,
                     Symbol.Kind.fromString(functionType),
                     true
             );
 
-            this.currentSymbolTable = newFunctionSymbol.getSymbolTable();
-            this.currentSubroutineTable = this.currentSymbolTable;
+            this.cSt = newFunctionSymbol.getSymbolTable();
+            this.subSt = this.cSt;
         }
 
         parseSymbol("(");
@@ -260,12 +267,12 @@ public class CompilationEngine {
         boolean returnsAllCodePaths = parseSubroutineBody();
 
         // VM CODE - generate the function
-        this.w.writeLine("function " + this.globalSymbolTable.getName() + "."
-                + identifier.lexeme + " " + this.currentSymbolTable.getLocalCount());
+        this.w.writeLine("function " + this.globalSt.getName() + "." + identifier.lexeme + " " + this.cSt.getLocalCount());
+
         if (functionType.equals("constructor")) {
             // We need to allocate memory for the object and obtain a
             // pointer for 'this'.
-            this.w.writeLine("push constant " + this.globalSymbolTable.getFieldCount());
+            this.w.writeLine("push constant " + this.globalSt.getFieldCount());
             this.w.writeLine("call Memory.alloc 1");
             this.w.writeLine("pop pointer 0");
         } else if (functionType.equals("method")) {
@@ -287,7 +294,7 @@ public class CompilationEngine {
         parseSymbol("}");
 
         // Restore parent symbol table
-        this.currentSymbolTable = this.currentSymbolTable.getParent();
+        this.cSt = this.cSt.getParent();
     }
 
     /**
@@ -298,8 +305,6 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseParamList() throws ParserException, IOException {
-        //LinkedList<Symbol> symbols = new LinkedList<>();
-
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
@@ -406,8 +411,7 @@ public class CompilationEngine {
 
             // VM CODE - Add array index to vm code
             if (identifier != null) {
-                this.w.writeLater("push " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getKind().toString() +
-                        " " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getIndex());
+                this.w.writeLater("push " + identifier.getKind().toString() + " " + identifier.getIndex());
                 this.w.writeLater("add");
             }
 
@@ -434,8 +438,7 @@ public class CompilationEngine {
 
         // VM CODE - Update the identifier value
         if (identifier != null && !isArrayIdentifier) {
-            this.w.writeLater("pop " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getKind().toString() +
-                    " " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getIndex());
+            this.w.writeLater("pop " + identifier.getKind().toString() + " " + identifier.getIndex());
         } else {
             this.w.writeLater("pop temp 0");
             this.w.writeLater("pop pointer 1");
@@ -444,11 +447,12 @@ public class CompilationEngine {
         }
 
         // Initialize the variable
-        if (identifier != null && this.currentSymbolTable.scopeContains(identifier.getIdentifier()))
-            this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).setInitialized(true);
+        if (identifier != null && identifier.getId() != null)
+            identifier.setInitialized(true);
+
         // SEMANTIC ANALYSIS - Identifier has not been declared in this scope
         else if (identifier != null)
-            semanticError(identifier.getLineNumber(), "Identifier " + identifier.getIdentifier() + " used without previously declaring.");
+            semanticError(identifier.getLineNumber(), "Identifier " + identifier.getIdName() + " used without previously declaring.");
     }
 
     /**
@@ -466,13 +470,13 @@ public class CompilationEngine {
         int labelValue = this.labelCounter++;
 
         // Add the if statement to the symbol table
-        ChildSymbol childSymbol = this.currentSymbolTable.addSymbol(
+        ChildSymbol childSymbol = this.cSt.addSymbol(
             "",
             "if-stmt",
             Symbol.Kind.INNER,
             true
         );
-        this.currentSymbolTable = childSymbol.getSymbolTable();
+        this.cSt = childSymbol.getSymbolTable();
 
         parseKeyword("if");
         parseConditionalStatement();
@@ -503,7 +507,7 @@ public class CompilationEngine {
         }
 
         // Restore symbol table to parent
-        this.currentSymbolTable = this.currentSymbolTable.getParent();
+        this.cSt = this.cSt.getParent();
 
         return returnsOnAllCodePaths && elseReturnsOnAllCodePaths;
     }
@@ -520,13 +524,13 @@ public class CompilationEngine {
         int labelValue = this.labelCounter++;
 
         // Add the while statement to the symbol table
-        ChildSymbol childSymbol = this.currentSymbolTable.addSymbol(
+        ChildSymbol childSymbol = this.cSt.addSymbol(
                 "",
                 "while-stmt",
                 Symbol.Kind.INNER,
                 true
         );
-        this.currentSymbolTable = childSymbol.getSymbolTable();
+        this.cSt = childSymbol.getSymbolTable();
 
         parseKeyword("while");
 
@@ -548,7 +552,7 @@ public class CompilationEngine {
         this.w.writeLater("label WHILE_END" + labelValue);
 
         // Restore symbol table to parent
-        this.currentSymbolTable = this.currentSymbolTable.getParent();
+        this.cSt = this.cSt.getParent();
     }
 
     /**
@@ -575,7 +579,7 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseReturnStatement() throws ParserException, IOException {
-        String type = "";
+        String type = "void";
         parseKeyword("return");
 
         if (!this.t.peekNextToken().lexeme.equals(";"))
@@ -583,12 +587,12 @@ public class CompilationEngine {
 
         // TODO remove blank return type
         // SEMANTIC ANALYSIS - Check return type matches function declaration
-        type = type.equals("") ? "void" : type;
-        if (this.currentSubroutineTable != null && !this.currentSubroutineTable.getSymbol().getType().equals(type))
+        //type = type.equals("") ? "void" : type;
+        if (this.subSt != null && !this.subSt.getSymbol().getType().equals(type))
             semanticError(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type specified in function declaration.");
 
         // VM CODE - Push void and return
-        if (this.currentSubroutineTable != null && this.currentSubroutineTable.getType().equals("void"))
+        if (this.subSt != null && this.subSt.getType().equals("void"))
             this.w.writeLater("push constant 0");
         this.w.writeLater("return");
 
@@ -625,28 +629,29 @@ public class CompilationEngine {
 
         // VM CODE - Write code to call a subroutine
         // if method invocation in the same class
-        if (identifier != null && identifier.getClassIdentifier() != null && (identifier.getClassIdentifier().equals(this.globalSymbolTable.getName()) || identifier.getClassIdentifier().equals(""))) {
-            if (this.currentSubroutineTable.getKind() == Symbol.Kind.METHOD || this.currentSubroutineTable.getKind() == Symbol.Kind.CONSTRUCTOR) {
-                if (identifier.getClassIdentifierSymbol() != null && this.currentSymbolTable.scopeContains(identifier.getClassIdentifierSymbol().getName())) {
-                    this.w.writeLater("push " + this.currentSymbolTable.scopeFindSymbol(identifier.getClassIdentifierSymbol().getName()).getKind().toString() + " "
-                            + this.currentSymbolTable.scopeFindSymbol(identifier.getClassIdentifierSymbol().getName()).getIndex());
+        if (identifier != null && identifier.getCIdName() != null &&
+                (identifier.getCIdName().equals(this.globalSt.getName()) || identifier.getCIdName().equals(""))) {
+            if (this.subSt.getKind() == Symbol.Kind.METHOD || this.subSt.getKind() == Symbol.Kind.CONSTRUCTOR) {
+                if (identifier.getCId() != null && this.cSt.scopeContains(identifier.getCIdName())) {
+                    this.w.writeLater("push " + identifier.getKind().toString() + " "
+                            + identifier.getIndex());
                     offset = 1;
-                } else if (identifier.getClassIdentifierSymbol() != null && identifier.getClassIdentifierSymbol().getName().equals("this")) {
+                } else if (identifier.getCId() != null && identifier.getCIdName().equals("this")) {
                     this.w.writeLater("push pointer 0");
                     offset = 1;
                 }
             } else {
                 // SEMANTIC ANALYSIS - Check if method invocation from function
-                if (identifier.getIdentifierSymbol().getKind() == Symbol.Kind.METHOD ||
-                        identifier.getIdentifierSymbol().getKind() == Symbol.Kind.CONSTRUCTOR)
+                if (identifier.getId().getKind() == Symbol.Kind.METHOD ||
+                        identifier.getId().getKind() == Symbol.Kind.CONSTRUCTOR)
                     semanticError(identifier.getLineNumber(), "Function cannot call a method or constructor.");
             }
 
         // If method invocation is in another class
         } else {
             // Check to see if the first identifier needs to be pushed
-            if (identifier != null && identifier.getClassIdentifierSymbol() != null && this.currentSymbolTable.scopeContains(identifier.getClassIdentifierSymbol().getName())) {
-                this.w.writeLater("push " + identifier.getClassIdentifierSymbol().getKind().toString() + " " + identifier.getClassIdentifierSymbol().getIndex());
+            if (identifier != null && identifier.getCId() != null && this.cSt.scopeContains(identifier.getCIdName())) {
+                this.w.writeLater("push " + identifier.getCId().getKind().toString() + " " + identifier.getCId().getIndex());
                 offset = 1;
             }
 
@@ -901,14 +906,14 @@ public class CompilationEngine {
             if (!this.t.peekNextToken().lexeme.equals("[") && !this.t.peekNextToken().lexeme.equals("(")) {
                 if (identifier != null) {
                     // Try to resolve the symbol based on it already being in the symbol table
-                    if ((identifier.getClassIdentifier().equals("") || identifier.getClassIdentifier().equals(this.globalSymbolTable.getName()))
-                            && this.currentSymbolTable.scopeContains(identifier.getIdentifier())) {
+                    if ((identifier.getCIdName().equals("") || identifier.getCIdName().equals(this.globalSt.getName()))
+                            && this.cSt.scopeContains(identifier.getIdName())) {
                         this.w.writeLater("push " + identifier.getKind() + " " + identifier.getIndex());
 
                         // TODO check to see if this is actually needed, can it go ^^?
                         // Special case for constructor due to 'return this' being possible in constructor
                     } else if (typeToken.lexeme.equals("this") && !this.t.peekNextToken().lexeme.equals(".")
-                            && this.currentSubroutineTable.getKind() == Symbol.Kind.CONSTRUCTOR)
+                            && this.subSt.getKind() == Symbol.Kind.CONSTRUCTOR)
                         this.w.writeLater("push pointer 0");
                 }
             }
@@ -920,13 +925,13 @@ public class CompilationEngine {
 
                 // VM CODE - Write the identifier
                 if (identifier != null) {
-                    this.w.writeLater("push " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getKind().toString() +
-                            " " + this.currentSymbolTable.scopeFindSymbol(identifier.getIdentifier()).getIndex());
+                    this.w.writeLater("push " + identifier.getKind().toString() + " " + identifier.getIndex());
                     this.w.writeLater("add");
                 }
 
                 if (!arrayIndexType.equals("int"))
-                    semanticError(arrayIndexStart.lineNumber, "Expression in array indices must always evaluate to an integer. Type received was, " + arrayIndexType);
+                    semanticError(arrayIndexStart.lineNumber,
+                            "Expression in array indices must always evaluate to an integer. Type received was, " + arrayIndexType);
 
                 parseSymbol("]");
 
@@ -998,7 +1003,7 @@ public class CompilationEngine {
     }
 
     /**
-     * Parse an Identifier.
+     * Parse an Identifier, this is a hard task due to the many forms an identifier can come in.
      *
      * @param declaredCheck, check that the identifier that has been used has been declared previously.
      * @param initializedCheck, check whether the identifier has been initialized before being used.
@@ -1022,35 +1027,35 @@ public class CompilationEngine {
         // Single identifier
         if (!isClassIdentifier) {
             // Cover the case that the identifier may not have been declared and must be resolved later, after compilation
-            if (!this.currentSymbolTable.scopeContains(newToken.lexeme) && !newToken.lexeme.equals("this") ) {
+            if (!this.cSt.scopeContains(newToken.lexeme) && !newToken.lexeme.equals("this") ) {
                 // SEMANTIC ANALYSIS - Identifier used without declaring
                 if (declaredCheck) {
                     semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used without previously declaring.");
                 // If we don't want to check whether the identifier is declared, add it to the unresolved identifiers
                 } else {
                     Identifier unresolvedIdentifier = new Identifier(
-                            this.globalSymbolTable.getName(),
+                            this.globalSt.getName(),
+                            getClassObject(),
                             newToken.lexeme,
-                            newToken.lineNumber,
                             null,
-                            getClassObject()
+                            newToken.lineNumber
                     );
                     this.unresolvedIdentifiers.add(unresolvedIdentifier);
                     return unresolvedIdentifier;
                 }
 
             // SEMANTIC ANALYSIS - Check to see if the symbol has been initialized
-            } else if (initializedCheck && !this.currentSymbolTable.scopeFindSymbol(newToken.lexeme).isInitialized())
+            } else if (initializedCheck && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
                 semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
 
             // At this point we know the identifier is in the symbol table so return it
             else {
                 return new Identifier(
-                        this.globalSymbolTable.getName(),
+                        this.globalSt.getName(),
+                        getClassObject(),
                         newToken.lexeme,
-                        newToken.lineNumber,
-                        this.currentSymbolTable.scopeFindSymbol(newToken.lexeme),
-                        getClassObject()
+                        this.cSt.scopeFindSymbol(newToken.lexeme),
+                        newToken.lineNumber
                 );
             }
         }
@@ -1061,7 +1066,7 @@ public class CompilationEngine {
             Token newScopedToken = this.t.getNextToken();
 
             // Check to see if the class level identifier has been declared (it could be a variable or the name of a class)
-            if (!this.currentSymbolTable.scopeContains(newToken.lexeme) && !newToken.lexeme.equals(this.globalSymbolTable.getName())) {
+            if (!this.cSt.scopeContains(newToken.lexeme) && !newToken.lexeme.equals(this.globalSt.getName())) {
                 Identifier unresolvedIdentifier = new Identifier(
                         newToken.lexeme,
                         newScopedToken.lexeme,
@@ -1071,19 +1076,19 @@ public class CompilationEngine {
                 return unresolvedIdentifier;
 
             // SEMANTIC ANALYSIS - Check to see if the class level symbol has been initialized
-            } else if (initializedCheck && this.currentSymbolTable.scopeContains(newToken.lexeme) && !this.currentSymbolTable.scopeFindSymbol(newToken.lexeme).isInitialized())
+            } else if (initializedCheck && this.cSt.scopeContains(newToken.lexeme) && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
                 semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
 
             // We now know that the outer identifier has been defined so we can proceed to check the inner identifier
             // This case covers when the class identifier is of the current class
-            else if (newToken.lexeme.equals(this.globalSymbolTable.getName())) {
-                if (!this.globalSymbolTable.contains(newScopedToken.lexeme)) {
+            else if (newToken.lexeme.equals(this.globalSt.getName())) {
+                if (!this.globalSt.contains(newScopedToken.lexeme)) {
                     // SEMANTIC ANALYSIS - Identifier used without declaring
                     if (declaredCheck)
                         semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
                     else {
                         Identifier unresolvedIdentifier = new Identifier(
-                                this.globalSymbolTable.getName(),
+                                this.globalSt.getName(),
                                 newScopedToken.lexeme,
                                 newScopedToken.lineNumber
                         );
@@ -1093,43 +1098,43 @@ public class CompilationEngine {
                 } else {
                     return new Identifier(
                             newToken.lexeme,
+                            this.cSt.scopeFindSymbol(newToken.lexeme),
                             newScopedToken.lexeme,
-                            newScopedToken.lineNumber,
-                            this.globalSymbolTable.findSymbol(newScopedToken.lexeme),
-                            this.currentSymbolTable.scopeFindSymbol(newToken.lexeme)
+                            this.globalSt.findSymbol(newScopedToken.lexeme),
+                            newScopedToken.lineNumber
                     );
                 }
 
             // Covers the case when the identifier is a variable identifier referencing a class
             } else {
                 // SEMANTIC ANALYSIS - Check that the identifier has been initialized since it is now known to be a variable
-                if (initializedCheck && !this.currentSymbolTable.scopeFindSymbol(newToken.lexeme).isInitialized())
+                if (initializedCheck && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
                     semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
 
                 // Check the inner identifier
-                String classType = this.currentSymbolTable.scopeFindSymbol(newToken.lexeme).getType();
+                String classType = this.cSt.scopeFindSymbol(newToken.lexeme).getType();
 
                 // If the inner identifier is part of another class
-                if (!this.globalSymbolTable.getName().equals(classType)) {
+                if (!this.globalSt.getName().equals(classType)) {
                     // SEMANTIC ANALYSIS - Identifier used without declaring
                     if (declaredCheck)
                         semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
                     else {
                         Identifier unresolvedIdentifier = new Identifier(
-                                this.currentSymbolTable.scopeFindSymbol(newToken.lexeme).getType(),
+                                this.cSt.scopeFindSymbol(newToken.lexeme).getType(),
+                                this.cSt.scopeFindSymbol(newToken.lexeme),
                                 newScopedToken.lexeme,
-                                newToken.lineNumber,
                                 null,
-                                this.currentSymbolTable.scopeFindSymbol(newToken.lexeme)
+                                newToken.lineNumber
                         );
                         this.unresolvedIdentifiers.add(unresolvedIdentifier);
                         return unresolvedIdentifier;
                     }
                 // Otherwise, it is referencing the current class
                 } else {
-                    if (!this.globalSymbolTable.contains(newScopedToken.lexeme)) {
+                    if (!this.globalSt.contains(newScopedToken.lexeme)) {
                         // SEMANTIC ANALYSIS - Check that the identifier has been initialized since it is now known to be a variable
-                        if (initializedCheck && !this.currentSymbolTable.scopeFindSymbol(newScopedToken.lexeme).isInitialized())
+                        if (initializedCheck && !this.cSt.scopeFindSymbol(newScopedToken.lexeme).isInitialized())
                             semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used before being initialized.");
 
 
@@ -1138,7 +1143,7 @@ public class CompilationEngine {
                             semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
                         else {
                             Identifier unresolvedIdentifier = new Identifier(
-                                    this.globalSymbolTable.getName(),
+                                    this.globalSt.getName(),
                                     newToken.lexeme,
                                     newToken.lineNumber
                             );
@@ -1147,11 +1152,9 @@ public class CompilationEngine {
                         }
                     } else {
                         return new Identifier(
-                                classType,
-                                newScopedToken.lexeme,
-                                newScopedToken.lineNumber,
-                                this.globalSymbolTable.findSymbol(newScopedToken.lexeme),
-                                this.currentSymbolTable.scopeFindSymbol(newToken.lexeme)
+                                this.globalSt.findSymbol(newScopedToken.lexeme),
+                                this.cSt.scopeFindSymbol(newToken.lexeme),
+                                newScopedToken.lineNumber
                         );
                     }
                 }
@@ -1165,10 +1168,10 @@ public class CompilationEngine {
      * @return the 'this' symbol
      */
     private Symbol getClassObject() {
-        boolean isMethod = this.currentSubroutineTable.getSymbol().getKind() == Symbol.Kind.METHOD;
-        boolean isConstructor = this.currentSubroutineTable.getSymbol().getKind() == Symbol.Kind.CONSTRUCTOR;
+        boolean isMethod = this.subSt.getSymbol().getKind() == Symbol.Kind.METHOD;
+        boolean isConstructor = this.subSt.getSymbol().getKind() == Symbol.Kind.CONSTRUCTOR;
 
-        return (isMethod || isConstructor) ? this.currentSymbolTable.scopeFindSymbol("this") : null;
+        return (isMethod || isConstructor) ? this.cSt.scopeFindSymbol("this") : null;
     }
 
     /**
@@ -1187,17 +1190,17 @@ public class CompilationEngine {
         Symbol symbol;
 
         // SEMANTIC ANALYSIS - Check for redeclaration
-        if (this.currentSymbolTable.subroutineContains(identifier.lexeme))
+        if (this.cSt.subroutineContains(identifier.lexeme))
             semanticError(this.t.peekNextToken().lineNumber, "Redeclaration of identifier: " + identifier.lexeme);
 
-        symbol = this.currentSymbolTable.addSymbol(identifier.lexeme, type, Symbol.Kind.fromString(kind), isInitialized).getSymbol();
+        symbol = this.cSt.addSymbol(identifier.lexeme, type, Symbol.Kind.fromString(kind), isInitialized).getSymbol();
 
         // Some variable declarations allow for multiple variables at once to be declared
         if (!singleIdentifierOnly) {
             while (this.t.peekNextToken().lexeme.equals(",")) {
                 this.t.getNextToken();
                 identifier = this.t.getNextToken();
-                this.currentSymbolTable.addSymbol(identifier.lexeme, type, Symbol.Kind.fromString(kind), isInitialized);
+                this.cSt.addSymbol(identifier.lexeme, type, Symbol.Kind.fromString(kind), isInitialized);
             }
         }
 
@@ -1223,20 +1226,20 @@ public class CompilationEngine {
     }
 
     /**
-     * SEMANTIC ANALYSIS - Check that the arguments provided to a subroutine are in line with the function definition
-     * @param identifier
-     * @param paramTypes
-     * @throws SemanticException
-     * @throws IOException
+     * SEMANTIC ANALYSIS - Check that the arguments provided to a subroutine are in line with the function definition.
+     *
+     * @param identifier the identifier that the arguments are a part of.
+     * @param paramTypes a list of parameter types that have been found.
+     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void checkSubroutineArguments(Identifier identifier, LinkedList<String> paramTypes) throws IOException {
         // If the subroutine has not yet been declared or is not part of this class then don't check argument types.
-        if (identifier != null && identifier.getIdentifierSymbol() != null) {
-            Symbol.Kind subroutineKind = identifier.getIdentifierSymbol().getKind();
+        if (identifier != null && identifier.getId() != null) {
+            Symbol.Kind subroutineKind = identifier.getKind();
             if (subroutineKind == Symbol.Kind.METHOD || subroutineKind == Symbol.Kind.CONSTRUCTOR
                     || subroutineKind == Symbol.Kind.FUNCTION) {
-                SymbolTable subroutine = identifier.getIdentifierSymbol().getChildSymbolTable();
-                HashMap<Integer, String> subroutineSymbolTypes = subroutine.getArgumentSymbols();
+                SymbolTable subroutine = identifier.getId().getChildSymbolTable();
+                LinkedList<String> subroutineSymbolTypes = subroutine.getArgumentSymbols();
 
                 // SEMANTIC ANALYSIS - Check that the number of arguments
                 if (subroutineKind == Symbol.Kind.METHOD && paramTypes.size() != subroutine.getArgumentCount() - 1)
@@ -1246,9 +1249,14 @@ public class CompilationEngine {
                     semanticError(this.t.peekNextToken().lineNumber, "The number of arguments for the function call doesn't match that of the declaration.");
 
                 // SEMANTIC ANALYSIS - Check that arguments match.
-                for (int x = 0; x < paramTypes.size(); x++) {
-                    if (!paramTypes.get(x).equals(subroutineSymbolTypes.get(x)))
-                        semanticError(this.t.peekNextToken().lineNumber, "The type: " + paramTypes.get(x) + " doesn't match the type used in the function declaration.");
+                Iterator<String> it1 = paramTypes.iterator();
+                Iterator<String> it2 = subroutineSymbolTypes.iterator();
+                while (it1.hasNext() && it2.hasNext()) {
+                    String currentType = it1.next();
+                    String declarType = it2.next();
+
+                    if (!currentType.equals(declarType))
+                        semanticError(this.t.peekNextToken().lineNumber, "The type: " + currentType + " doesn't match " + declarType + " used in the function declaration.");
                 }
             }
         // Add the parameter types to be resolved and checked later
@@ -1258,10 +1266,11 @@ public class CompilationEngine {
     }
 
     /**
+     * Parse a conditional statement of the form (condition).
+     * This is used as part of a while loop or if statement.
      *
-     * @throws IOException
-     * @throws ParserException
-     * @throws SemanticException
+     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
      */
     private void parseConditionalStatement() throws IOException, ParserException {
         parseSymbol("(");
@@ -1269,71 +1278,105 @@ public class CompilationEngine {
         parseSymbol(")");
     }
 
+    /**
+     * Delete the vm file that has been created. This function is run
+     * if the compiler finds a semantic or parsing error and must remove the
+     * vm code that has been generated up to the point of the exception.
+     */
     public void deleteVMCode() {
         this.w.deleteFile();
     }
 }
 
+
+/**
+ * The identifier class is used to handle the various types of identifiers
+ * that are allowed in the jack language. It stores information about the
+ * identifier and allows for quick access to the data stored in the symbol table
+ * about it.
+ */
 class Identifier {
-    private String classIdentifier;
-    private Symbol classIdentifierSymbol;
-    private String identifier;
-    private Symbol identifierSymbol;
+    private Symbol cId;
+    private Symbol id;
+    private String cIdName;
+    private String idName;
     private int lineNumber;
     private LinkedList<String> arguments;
 
-    public Identifier(String classIdentifier, String identifier, int lineNumber) {
-        this(classIdentifier, identifier, lineNumber, null, null);
+    /**
+     * Create an identifier that isn't yet declared in the symbol table.
+     *
+     * @param cIdName the name of the class level identifier.
+     * @param idName the name of the identifier.
+     * @param lineNumber the line number the identifier is located at.
+     */
+    public Identifier(String cIdName, String idName, int lineNumber) {
+        this(cIdName, null, idName, null, lineNumber);
     }
 
-    public Identifier(String classIdentifier, String identifier, int lineNumber, Symbol identifierSymbol, Symbol classIdentifierSymbol) {
-        this.classIdentifier = classIdentifier;
-        this.identifier = identifier;
+    /**
+     * Create an identifier that has been declared, fully.
+     *
+     * @param cId the class identifier symbol.
+     * @param id the identifier symbol.
+     * @param lineNumber the line number that the identifier is located at.
+     */
+    public Identifier(Symbol cId, Symbol id, int lineNumber) {
+        this(cId.getName(), cId, id.getName(), id, lineNumber);
+    }
+
+    /**
+     * Create an identifier.
+     *
+     * @param cIdName the name of the class level identifier.
+     * @param cId the class identifier symbol.
+     * @param idName the name of the identifier.
+     * @param id the identifier symbol.
+     * @param lineNumber the line number the identifier is located at.
+     */
+    public Identifier(String cIdName, Symbol cId, String idName, Symbol id, int lineNumber) {
+        this.cIdName = cIdName;
+        this.cId = cId;
+        this.idName = idName;
+        this.id = id;
         this.lineNumber = lineNumber;
-        this.identifierSymbol = identifierSymbol;
-        this.classIdentifierSymbol = classIdentifierSymbol;
     }
 
-    public String getClassIdentifier() { return this.classIdentifier; }
-    public String getIdentifier() { return this.identifier; }
+    /*
+     * Getters
+     */
+    public String getCIdName() { return this.cIdName; }
+    public String getIdName() { return this.idName; }
     public int getLineNumber() { return this.lineNumber; }
-    public Symbol getIdentifierSymbol() { return this.identifierSymbol; }
-    public Symbol getClassIdentifierSymbol() { return this.classIdentifierSymbol; }
+    public Symbol getId() { return this.id; }
+    public Symbol getCId() { return this.cId; }
     public LinkedList<String> getArguments() { return this.arguments; }
 
-    public Symbol.Kind getKind() {
-        if (this.identifierSymbol != null)
-            return this.identifierSymbol.getKind();
-        else
-            return null;
-    }
+    // these getters allow quick access of data i.e. rather than typing identifier.getId().getKind() -> identifier.getKind()
+    public Symbol.Kind getKind() { return this.id != null ? this.id.getKind() : null; }
+    public int getIndex() { return this.id != null ? this.id.getIndex() : -1; }
+    public String getType() { return this.id != null ? this.id.getType() : ""; }
 
-    public int getIndex() {
-        if (this.identifierSymbol != null)
-            return this.identifierSymbol.getIndex();
-
-        return -1;
-    }
-
-    public String getType() {
-        if (this.identifierSymbol != null)
-            return this.identifierSymbol.getType();
-
-        return "";
-    }
-
+    /*
+     * Setters
+     */
     public void setArguments(LinkedList<String> args) {
         this.arguments = args;
     }
-
-    public void setIdentifierSymbol(Symbol symbol) {
-        this.identifierSymbol = symbol;
+    public void setId(Symbol symbol) {
+        this.id = symbol;
     }
+    public void setInitialized(boolean initialized) { this.id.setInitialized(initialized); }
 
+    /**
+     * Return the name of the identifier.
+     * @return name of the identifier.
+     */
+    @Override
     public String toString() {
-        if (this.classIdentifier == null || this.classIdentifier.equals(""))
-            return this.identifier;
+        if (this.cIdName == null || this.cIdName.equals(""))
+            return this.idName;
         else
-            return this.classIdentifier + "." + this.identifier;
+            return this.cIdName + "." + this.idName;
     }
 }

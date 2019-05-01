@@ -317,7 +317,7 @@ public class Tokenizer {
             t = createToken(String.valueOf((char)c), Token.Types.SYMBOL);
         // Invalid symbol not supported by the jack compiler
         else
-            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved SYMBOL \"" + (char)c + "\" found.");
+            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved symbol \"" + (char)c + "\" found.");
 
         // Store current token to enable peek to function
         this.peeked = false;

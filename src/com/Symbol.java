@@ -101,7 +101,6 @@ public class Symbol {
     public Kind getKind() { return this.kind; }
     public SymbolTable getChildSymbolTable() { return this.childSymbolTable; }
     public int getIndex() { return this.index; }
-
     public boolean isInitialized() { return this.initialized; }
 
     /**

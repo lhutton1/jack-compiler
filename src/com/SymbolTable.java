@@ -1,6 +1,7 @@
 package com;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 /**
@@ -53,12 +54,12 @@ public class SymbolTable {
      * Get all symbols in the table that consist of an argument kind.
      * @return HashMap with all argument symbols.
      */
-    public HashMap<Integer, String> getArgumentSymbols() {
-        HashMap<Integer, String> result = new HashMap<>();
+    public LinkedList<String> getArgumentSymbols() {
+        LinkedList<String> result = new LinkedList<>();
 
         for (Symbol s : this.symbolMap.values()) {
             if (s.getKind() == Symbol.Kind.ARGUMENT)
-                result.put(s.getIndex(), s.getType());
+                result.add(s.getType());
         }
 
         return result;
