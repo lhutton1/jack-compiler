@@ -52,7 +52,7 @@ public class JackCompiler {
      * @param file the file to be compiled
      */
     private static void compile(File file) {
-        System.out.println("[Compiling] " + file.getAbsolutePath());
+        System.out.println("[Compiling] " + file.getPath());
 
         try {
             CompilationEngine compilationEngine = new CompilationEngine(file);
@@ -61,6 +61,7 @@ public class JackCompiler {
             try {
                 compilationEngine.run();
             } catch (ParserException e) {
+                e.printStackTrace();
                 compilationEngine.deleteVMCode();
                 System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
                 System.exit(1);

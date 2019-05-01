@@ -36,7 +36,7 @@ public class VMWriter {
      */
     public static File changeExtension(File file, String newExtension) {
         String name = file.getName().substring(0, file.getName().lastIndexOf('.'));
-        return new File(file.getParent() + "/" + name + "2" + newExtension);
+        return new File(file.getParent() + "/" + name + newExtension);
     }
 
     /**

@@ -10,11 +10,12 @@ import java.util.LinkedList;
  * vm code of a .jack source file.
  */
 public class CompilationEngine {
-    private final boolean DEBUGGING = true;                 // If true print the symbol table and unresolved identifiers at the end of compilation.
+    private final boolean DEBUGGING = false;                 // If true print the symbol table and unresolved identifiers at the end of compilation.
     private final boolean SEMANTIC_ANALYSIS = true;         // If true perform the semantic analysis checks on the source code.
 
     private final Tokenizer t;                              // Tokenizer object that reads from a source file.
     private final VMWriter w;                               // Object that writes vm code to file.
+    private final File f;                                   // The file we are currently writing to.
 
     private SymbolTable globalSt;                           // The symbol table for the class.
     private SymbolTable subSt;                              // The symbol table of the current subroutine.
@@ -23,6 +24,12 @@ public class CompilationEngine {
     private LinkedList<Identifier> unresolvedIdentifiers;    // Identifiers that couldn't be resolved and need to be checked at the end.
     private int labelCounter;                               // Counter used to generate a unique label id for if and while statements.
     private boolean semanticStatus;                         // The current status of the semantic checks. If an error occurs this equals false.
+
+    // Colour the text on the command line appropriately
+    // Source: https://stackoverflow.com/questions/5762491/how-to-print-color-in-console-using-system-out-println
+    private static final String ANSI_RED = "\033[0;91m";
+    private static final String ANSI_YELLOW = "\033[0;93m";
+    private static final String ANSI_RESET = "\u001B[0m";
 
     /**
      * Get the status of the semantics of the source code.
@@ -36,6 +43,7 @@ public class CompilationEngine {
      * @throws IOException thrown if file cannot be opened, or read from.
      */
     public CompilationEngine(File file) throws IOException {
+        this.f = file;
         this.t = new Tokenizer(file);
         this.w = new VMWriter(file);
         this.unresolvedIdentifiers = new LinkedList<>();
@@ -68,7 +76,7 @@ public class CompilationEngine {
 
         // Compilation successful
         if (semanticStatus)
-            System.out.println("Compilation successfully completed!");
+            System.out.println("[Compilation successful] " + this.f.getName());
         else
             this.w.deleteFile();
 
@@ -88,7 +96,7 @@ public class CompilationEngine {
      */
     private void semanticError(int lineNumber, String msg) {
         if (SEMANTIC_ANALYSIS) {
-            System.err.println("[Semantic error] Line " + lineNumber + ": " + msg);
+            System.err.println(ANSI_RED + "[Semantic error] Line " + lineNumber + ": " + msg + ANSI_RESET);
             semanticStatus = false;
         }
     }
@@ -101,7 +109,7 @@ public class CompilationEngine {
      */
     private void semanticWarning(int lineNumber, String msg) {
         if (SEMANTIC_ANALYSIS)
-            System.err.println("[Semantic warning] Line " + lineNumber + ": " + msg);
+            System.err.println(ANSI_YELLOW + "[Semantic warning] Line " + lineNumber + ": " + msg + ANSI_RESET);
     }
 
     /**
@@ -116,7 +124,6 @@ public class CompilationEngine {
 
             if (id.getCIdName().equals(this.globalSt.getName())) {
                 if (!this.globalSt.contains(id.getIdName())) {
-                    System.out.println("here");
                     semanticError(id.getLineNumber(), "Identifier " + id.getIdName() + " used without previously declaring.");
                 } else {
                     id.setId(this.globalSt.findSymbol(id.getIdName()));
@@ -246,9 +253,16 @@ public class CompilationEngine {
         identifier = this.t.getNextToken();
 
         // Check for redeclaration and add symbol
-        if (this.cSt.contains(identifier.lexeme))
-            throw new ParserException(identifier.lineNumber, "Redeclaration of identifier: " + identifier.lexeme);
-        else {
+        // Note: for some reason jack seems to allow class variables
+        // and subroutines with the same names a work around has
+        // been included for this situation.
+        if (this.cSt.contains(identifier.lexeme)) {
+            boolean isClassVariable = this.cSt.scopeFindSymbol(identifier.lexeme).getKind() == Symbol.Kind.FIELD
+                    || this.cSt.scopeFindSymbol(identifier.lexeme).getKind() == Symbol.Kind.STATIC;
+
+            if (!isClassVariable)
+                throw new ParserException(identifier.lineNumber, "Redeclaration of identifier, " + identifier.lexeme);
+        } else {
             ChildSymbol newFunctionSymbol = this.cSt.addSymbol(
                     identifier.lexeme,
                     type,
@@ -395,7 +409,7 @@ public class CompilationEngine {
      * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseLetStatement() throws ParserException, IOException {
-        String returnType;
+        String type;
         Identifier identifier;
         boolean isArrayIdentifier = false;
 
@@ -407,7 +421,7 @@ public class CompilationEngine {
             isArrayIdentifier = true;
             this.t.getNextToken();
 
-            returnType = parseExpression();
+            type = parseExpression();
 
             // VM CODE - Add array index to vm code
             if (identifier != null) {
@@ -416,23 +430,25 @@ public class CompilationEngine {
             }
 
             // SEMANTIC ANALYSIS - Check that an array index evaluates to an integer constant
-            if (identifier != null && !returnType.equals("int"))
+            if (identifier != null && !type.equals("int"))
                 semanticError(identifier.getLineNumber(), "Expression in array indices must always evaluate to an integer.");
 
             parseSymbol("]");
         }
 
         parseSymbol("=");
-        returnType = parseExpression();
+        type = parseExpression();
 
         // SEMANTIC ANALYSIS - Check type matches LHS.
         // Things to note:
         // - Array can support any data type.
         // - Int can be indirectly converted to a boolean.
-        if (identifier != null && identifier.getType().equals("boolean") && returnType.equals("int"))
-            returnType = "boolean";
-        if (identifier != null && !returnType.equals("") && !returnType.equals(identifier.getType()) && !identifier.getType().equals("Array"))
-            semanticError(identifier.getLineNumber(), "Cannot assign type " + returnType + " to " + identifier.getType() + ".");
+        // TODO Clean up.
+        if (identifier != null && identifier.getType().equals("boolean") && type.equals("int")) {
+            type = "boolean";
+        } if (identifier != null && !type.equals("") && !type.equals(identifier.getType()) && !identifier.getType().equals("Array") &&
+                (type.equals("boolean") || type.equals("char") || type.equals("int")))
+            semanticError(identifier.getLineNumber(), "Cannot assign type " + type + " to " + identifier.getType() + ".");
 
         parseSymbol(";");
 
@@ -585,11 +601,18 @@ public class CompilationEngine {
         if (!this.t.peekNextToken().lexeme.equals(";"))
             type = parseExpression();
 
-        // TODO remove blank return type
         // SEMANTIC ANALYSIS - Check return type matches function declaration
-        //type = type.equals("") ? "void" : type;
-        if (this.subSt != null && !this.subSt.getSymbol().getType().equals(type))
-            semanticError(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type specified in function declaration.");
+        if (this.subSt != null) {
+            String functionType = this.subSt.getSymbol().getType();
+
+            if (this.subSt.getSymbol().getKind() == Symbol.Kind.CONSTRUCTOR && !this.globalSt.getName().equals(type)) {
+                semanticError(this.t.peekNextToken().lineNumber, "A constructor must return 'this'.");
+            } else if (!functionType.equals(type) && !functionType.equals("int")) {
+                semanticError(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type " +
+                        this.subSt.getSymbol().getType() + " specified in function declaration.");
+            }
+        }
+
 
         // VM CODE - Push void and return
         if (this.subSt != null && this.subSt.getType().equals("void"))
@@ -632,19 +655,19 @@ public class CompilationEngine {
         if (identifier != null && identifier.getCIdName() != null &&
                 (identifier.getCIdName().equals(this.globalSt.getName()) || identifier.getCIdName().equals(""))) {
             if (this.subSt.getKind() == Symbol.Kind.METHOD || this.subSt.getKind() == Symbol.Kind.CONSTRUCTOR) {
-                if (identifier.getCId() != null && this.cSt.scopeContains(identifier.getCIdName())) {
+                if (this.cSt.scopeContains(identifier.getCIdName())) {
                     this.w.writeLater("push " + identifier.getKind().toString() + " "
                             + identifier.getIndex());
                     offset = 1;
-                } else if (identifier.getCId() != null && identifier.getCIdName().equals("this")) {
+                } else if (identifier.getCIdName().equals("this")) {
                     this.w.writeLater("push pointer 0");
                     offset = 1;
                 }
             } else {
                 // SEMANTIC ANALYSIS - Check if method invocation from function
-                if (identifier.getId().getKind() == Symbol.Kind.METHOD ||
-                        identifier.getId().getKind() == Symbol.Kind.CONSTRUCTOR)
-                    semanticError(identifier.getLineNumber(), "Function cannot call a method or constructor.");
+                if (identifier.getId() != null
+                        && (identifier.getId().getKind() == Symbol.Kind.METHOD))
+                    semanticError(identifier.getLineNumber(), "Function cannot call a method.");
             }
 
         // If method invocation is in another class
@@ -755,7 +778,6 @@ public class CompilationEngine {
             else
                 this.w.writeLater("gt");
         }
-
         return type;
     }
 
@@ -786,7 +808,6 @@ public class CompilationEngine {
             else
                 this.w.writeLater("sub");
         }
-
         return type;
     }
 
@@ -1031,7 +1052,7 @@ public class CompilationEngine {
                 // SEMANTIC ANALYSIS - Identifier used without declaring
                 if (declaredCheck) {
                     semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used without previously declaring.");
-                // If we don't want to check whether the identifier is declared, add it to the unresolved identifiers
+                    // If we don't want to check whether the identifier is declared, add it to the unresolved identifiers
                 } else {
                     Identifier unresolvedIdentifier = new Identifier(
                             this.globalSt.getName(),
@@ -1044,12 +1065,12 @@ public class CompilationEngine {
                     return unresolvedIdentifier;
                 }
 
-            // SEMANTIC ANALYSIS - Check to see if the symbol has been initialized
-            } else if (initializedCheck && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
-                semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
-
             // At this point we know the identifier is in the symbol table so return it
-            else {
+            } else {
+                // SEMANTIC ANALYSIS - Check to see if the symbol has been initialized
+                if (initializedCheck && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
+                    semanticWarning(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
+
                 return new Identifier(
                         this.globalSt.getName(),
                         getClassObject(),
@@ -1067,6 +1088,10 @@ public class CompilationEngine {
 
             // Check to see if the class level identifier has been declared (it could be a variable or the name of a class)
             if (!this.cSt.scopeContains(newToken.lexeme) && !newToken.lexeme.equals(this.globalSt.getName())) {
+                // SEMANTIC ANALYSIS - Check to see if the class level symbol has been initialized
+                if (initializedCheck && this.cSt.scopeContains(newToken.lexeme) && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
+                    semanticWarning(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
+
                 Identifier unresolvedIdentifier = new Identifier(
                         newToken.lexeme,
                         newScopedToken.lexeme,
@@ -1074,10 +1099,7 @@ public class CompilationEngine {
                 );
                 this.unresolvedIdentifiers.add(unresolvedIdentifier);
                 return unresolvedIdentifier;
-
-            // SEMANTIC ANALYSIS - Check to see if the class level symbol has been initialized
-            } else if (initializedCheck && this.cSt.scopeContains(newToken.lexeme) && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
-                semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
+            }
 
             // We now know that the outer identifier has been defined so we can proceed to check the inner identifier
             // This case covers when the class identifier is of the current class
@@ -1109,7 +1131,7 @@ public class CompilationEngine {
             } else {
                 // SEMANTIC ANALYSIS - Check that the identifier has been initialized since it is now known to be a variable
                 if (initializedCheck && !this.cSt.scopeFindSymbol(newToken.lexeme).isInitialized())
-                    semanticError(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
+                    semanticWarning(newToken.lineNumber, "Identifier " + newToken.lexeme + " used before being initialized.");
 
                 // Check the inner identifier
                 String classType = this.cSt.scopeFindSymbol(newToken.lexeme).getType();
@@ -1135,7 +1157,7 @@ public class CompilationEngine {
                     if (!this.globalSt.contains(newScopedToken.lexeme)) {
                         // SEMANTIC ANALYSIS - Check that the identifier has been initialized since it is now known to be a variable
                         if (initializedCheck && !this.cSt.scopeFindSymbol(newScopedToken.lexeme).isInitialized())
-                            semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used before being initialized.");
+                            semanticWarning(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used before being initialized.");
 
 
                         // SEMANTIC ANALYSIS - Identifier used without declaring
@@ -1255,7 +1277,7 @@ public class CompilationEngine {
                     String currentType = it1.next();
                     String declarType = it2.next();
 
-                    if (!currentType.equals(declarType))
+                    if (!currentType.equals(declarType) && !declarType.equals("int"))
                         semanticError(this.t.peekNextToken().lineNumber, "The type: " + currentType + " doesn't match " + declarType + " used in the function declaration.");
                 }
             }

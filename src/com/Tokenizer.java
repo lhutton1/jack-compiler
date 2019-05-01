@@ -236,7 +236,7 @@ public class Tokenizer {
 
         // If the current character is an integer then we need to
         // make sure that a letter placed after it is separated into a new token.
-        if (Character.isDigit(c))
+        if (Character.isDigit(c) && !isStringConstant)
             isIntegerToken = true;
 
         // Iterate until delimiter found
@@ -261,7 +261,7 @@ public class Tokenizer {
      * detected or an identifier/keyword.
      * @param c the current character
      * @param isStringConstant determine whether to look for '"' or whitespace and symbols
-     * @param isIntegerToken determine if a character placed after INTEGER is valid
+     * @param isIntegerToken determine if a character placed after integer is valid
      * @return false if end of statement has not been reached
      */
     private boolean detectDelimiter(int c, boolean isStringConstant, boolean isIntegerToken) {
