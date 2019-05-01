@@ -23,7 +23,7 @@ public class VMWriter {
      * @throws IOException throws an exception if the jack file cannot be opened.
      */
     public VMWriter(File jackFile) throws IOException {
-        this.file = changeExtension(jackFile, ".vm");
+        this.file = changeExtension(jackFile, "(test).vm");
         this.writer = Files.newBufferedWriter(Paths.get(file.getAbsolutePath()), StandardCharsets.UTF_8);
         this.code = new StringBuilder();
     }

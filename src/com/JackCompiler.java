@@ -28,7 +28,7 @@ public class JackCompiler {
         // we need to compile every file in the directory
         if (file.isDirectory()) {
             for (File f : file.listFiles()) {
-                if (f.isFile() && file.getName().endsWith(".jack"))
+                if (f.isFile() && f.getName().endsWith(".jack"))
                     compile(f);
             }
         // we only compile the single file
@@ -52,6 +52,8 @@ public class JackCompiler {
      * @param file the file to be compiled
      */
     private static void compile(File file) {
+        System.out.println("[Compiling] " + file.getAbsolutePath());
+
         try {
             CompilationEngine compilationEngine = new CompilationEngine(file);
 
