@@ -340,8 +340,13 @@ public class CompilationEngine {
         while (!this.t.peekNextToken().lexeme.equals("}")) {
             boolean statementReturns = parseStatement();
 
-            if (statementReturns)
+            if (statementReturns) {
                 returnsOnAllCodePaths = true;
+
+                // SEMANTIC ANALYSIS - Check for unreachable code
+                if (!this.t.peekNextToken().lexeme.equals("}"))
+                    semanticWarning(this.t.peekNextToken().lineNumber, "Unreachable code will not be executed.");
+            }
         }
 
         return returnsOnAllCodePaths;
@@ -505,7 +510,6 @@ public class CompilationEngine {
 
         parseSymbol("{");
         returnsOnAllCodePaths = parseStatementBody();
-        System.out.println("if: " + returnsOnAllCodePaths);
         parseSymbol("}");
 
         // VM CODE - write if statement code
@@ -518,7 +522,6 @@ public class CompilationEngine {
             this.t.getNextToken();
             parseSymbol("{");
             elseReturnsOnAllCodePaths = parseStatementBody();
-            System.out.println("else: " + elseReturnsOnAllCodePaths);
             parseSymbol("}");
 
             // VM CODE - write if statement code
@@ -598,24 +601,32 @@ public class CompilationEngine {
      * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
     private void parseReturnStatement() throws ParserException, TokenizerException {
-        String type = "void";
+        String expType = "void";
         parseKeyword("return");
 
         if (!this.t.peekNextToken().lexeme.equals(";"))
-            type = parseExpression();
+            expType = parseExpression();
 
         // SEMANTIC ANALYSIS - Check return type matches function declaration
         if (this.subSt != null) {
             String functionType = this.subSt.getSymbol().getType();
 
-            if (this.subSt.getSymbol().getKind() == Symbol.Kind.CONSTRUCTOR && !this.globalSt.getName().equals(type)) {
+            if (this.subSt.getSymbol().getKind() == Symbol.Kind.CONSTRUCTOR && !this.globalSt.getName().equals(expType)) {
                 semanticError(this.t.peekNextToken().lineNumber, "A constructor must return 'this'.");
-            } else if (!functionType.equals(type) && !functionType.equals("int")) {
-                semanticError(this.t.peekNextToken().lineNumber, "Return type " + type + " not compatible with return type " +
-                        this.subSt.getSymbol().getType() + " specified in function declaration.");
+            } else {
+                boolean functionIsObject = !functionType.equals("char") && !functionType.equals("boolean");
+                boolean expIsObject = !expType.equals("char") && !expType.equals("boolean");
+
+                if ((!expType.equals(functionType) && !expType.equals("int")
+                        && !(functionIsObject && expType.equals("null"))
+                        && !(functionType.equals("int") && (expIsObject)))
+                        || (functionType.equals("void") && !expType.equals("void"))
+                        || (!functionType.equals("void") && expType.equals("void"))) {
+                    semanticError(this.t.peekNextToken().lineNumber, "Return type " + expType + " not compatible with subroutine return type " +
+                            functionType + ".");
+                }
             }
         }
-
 
         // VM CODE - Push void and return
         if (this.subSt != null && this.subSt.getType().equals("void"))
@@ -623,11 +634,6 @@ public class CompilationEngine {
         this.w.writeLater("return");
 
         parseSymbol(";");
-
-        // SEMANTIC ANALYSIS - Check for unreachable code
-        Token unreachable = this.t.peekNextToken();
-        if (!unreachable.lexeme.equals("}"))
-            semanticWarning(unreachable.lineNumber, "Unreachable code will not be executed.");
     }
 
     /**

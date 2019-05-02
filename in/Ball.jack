@@ -1,5 +1,10 @@
 class Ball {
-    method int test2() {
-        var int z;
+    method List test2() {
+        var int x;
+        if (x) {
+            return x;
+        }
+        let x = 5;
+        return x;
     }
 }
