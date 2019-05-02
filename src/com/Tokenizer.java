@@ -58,31 +58,7 @@ public class Tokenizer {
             '~'
     ));
 
-    /**
-     * Create an instance of the Tokenizer and try to create a Buffered
-     * Reader pointing to the filePath specified.
-     * @param filePath file path to read file from
-     */
-    public Tokenizer(String filePath) throws IllegalArgumentException {
-        File file;
-        this.lineNumber = 1;
-        this.peeked = false;
-
-        if (!getFileExtension(filePath).equals("jack"))
-            throw new IllegalArgumentException("File must be of type '.jack'");
-
-        try {
-            file = new File(filePath);
-            this.br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(file),
-                Charset.forName("UTF-8"))
-            );
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
-    public Tokenizer(File file) throws IllegalArgumentException, FileNotFoundException {
+    public Tokenizer(File file) throws FileNotFoundException {
         this.lineNumber = 1;
         this.peeked = false;
 
@@ -90,22 +66,6 @@ public class Tokenizer {
                 new InputStreamReader(new FileInputStream(file),
                         Charset.forName("UTF-8"))
         );
-    }
-
-    /**
-     * Get the extension of a filePath.
-     * Modified from: https://stackoverflow.com/questions/3571223/
-     * how-do-i-get-the-file-extension-of-a-file-in-java
-     *
-     * @param filePath string containing the relative path of the file
-     * @return the file extension
-     */
-    private String getFileExtension(String filePath) {
-        String extension = "";
-        int i = filePath.lastIndexOf('.');
-        if (i >= 0)
-            extension = filePath.substring(i + 1);
-        return extension;
     }
 
     /**
@@ -157,16 +117,16 @@ public class Tokenizer {
 
     /**
      * Strip any white space and comments that exist in the input stream.
-     * @exception EOFException throw EOF exception if the end of the file has been reached unexpectedly
+     * @exception TokenizerException throw EOF exception if the end of the file has been reached unexpectedly
      */
-    private void stripWhiteSpaceAndComments() throws EOFException {
+    private void stripWhiteSpaceAndComments() throws TokenizerException {
         // While comments or white space need to be removed loop.
         while (true) {
             // Strip comments /** or /!* only stopping when */ or EOF reached
             if (this.peek() == '/' && (this.peek(2) == '*' || this.peek(2) == '!')) {
                 while((this.peek() != '*' || this.peek(2) != '/')) {
                     if (this.peek() == -1)
-                        throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning multiline comment");
+                        throw new TokenizerException(this.lineNumber, "Unexpected end of file while scanning multiline comment");
                     this.read();
                 }
                 this.read();
@@ -214,7 +174,7 @@ public class Tokenizer {
     /**
      * Override, giving default argument for isStringConstant.
      */
-    private String getMultiCharacterLexeme(int currentCharacter) throws EOFException {
+    private String getMultiCharacterLexeme(int currentCharacter) throws TokenizerException {
         return this.getMultiCharacterLexeme(currentCharacter, false);
     }
 
@@ -227,9 +187,9 @@ public class Tokenizer {
      * @param isStringConstant if a string has been detected in getNextToken,
      *        then we need to know to only look out for a '"' and no other delimiters
      * @return String containing lexeme
-     * @exception EOFException Thrown when the entire file has been read unexpectedly.
+     * @exception TokenizerException Thrown when the entire file has been read unexpectedly.
      */
-    private String getMultiCharacterLexeme(int currentCharacter, boolean isStringConstant) throws EOFException {
+    private String getMultiCharacterLexeme(int currentCharacter, boolean isStringConstant) throws TokenizerException {
         int c = currentCharacter;
         boolean isIntegerToken = false;
         StringBuilder lexeme = new StringBuilder();
@@ -243,7 +203,7 @@ public class Tokenizer {
         while (detectDelimiter((char)this.peek(), isStringConstant, isIntegerToken)) {
             // Ending string literal not found before EOF
             if ((c == -1 || c == 65535) && isStringConstant)
-                throw new EOFException("Error, line: " + this.lineNumber + ", Unexpected end of file while scanning string literal");
+                throw new TokenizerException(this.lineNumber, "Unexpected end of file while scanning string literal");
             // Possible grammar error but not dealt with yet
             else if (c == -1 || c == 65535)
                 return lexeme.toString();
@@ -279,7 +239,7 @@ public class Tokenizer {
      * @throws IOException if the end of the file is reached, or problem with buffered reader
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      */
-    public Token getNextToken() throws IllegalArgumentException, IOException {
+    public Token getNextToken() throws TokenizerException {
         int c;
         Token t;
 
@@ -294,7 +254,13 @@ public class Tokenizer {
         // Check if EOF token
         if (c == -1) {
             t = createToken(String.valueOf((char) c), Token.Types.EOF);
-            this.br.close();
+
+            try {
+                this.br.close();
+            } catch (IOException e) {
+                throw new TokenizerException(this.lineNumber, "Unable to close tokenizer buffered reader.");
+            }
+
         // Check if string literal token
         } else if (c == '"') {
             c = this.read();
@@ -317,7 +283,7 @@ public class Tokenizer {
             t = createToken(String.valueOf((char)c), Token.Types.SYMBOL);
         // Invalid symbol not supported by the jack compiler
         else
-            throw new IllegalArgumentException("Error, line: " + this.lineNumber + ", Unresolved symbol \"" + (char)c + "\" found.");
+            throw new TokenizerException(this.lineNumber, "Unresolved symbol \"" + (char)c + "\" found.");
 
         // Store current token to enable peek to function
         this.peeked = false;
@@ -332,7 +298,7 @@ public class Tokenizer {
      * @throws IllegalArgumentException if the reader comes across a character that is unexpected.
      * @throws IOException if the end of the file is reached, or problem with buffered reader
      */
-    public Token peekNextToken() throws IllegalArgumentException, IOException {
+    public Token peekNextToken() throws TokenizerException {
         if (this.peeked)
             return this.previousToken;
 

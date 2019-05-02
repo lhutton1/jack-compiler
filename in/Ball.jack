@@ -1,5 +1,5 @@
 class Ball {
-    constructor Ball run() {
-        do Output.printString("0");
+    method int test2() {
+        var int z;
     }
 }

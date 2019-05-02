@@ -25,12 +25,6 @@ public class CompilationEngine {
     private int labelCounter;                               // Counter used to generate a unique label id for if and while statements.
     private boolean semanticStatus;                         // The current status of the semantic checks. If an error occurs this equals false.
 
-    // Colour the text on the command line appropriately
-    // Source: https://stackoverflow.com/questions/5762491/how-to-print-color-in-console-using-system-out-println
-    private static final String ANSI_RED = "\033[0;91m";
-    private static final String ANSI_YELLOW = "\033[0;93m";
-    private static final String ANSI_RESET = "\u001B[0m";
-
     /**
      * Get the status of the semantics of the source code.
      * @return True = no semantic error occurred, False = at least one semantic error occurred
@@ -56,7 +50,7 @@ public class CompilationEngine {
      * @throws IOException thrown if the .jack source file cannot be read.
      * @throws ParserException thrown if the parser runs into an issue and must stop.
      */
-    public void run() throws IOException, ParserException {
+    public void run() throws ParserException, TokenizerException, IOException {
         // Parse a single class
         this.parseClass();
 
@@ -96,7 +90,7 @@ public class CompilationEngine {
      */
     private void semanticError(int lineNumber, String msg) {
         if (SEMANTIC_ANALYSIS) {
-            System.err.println(ANSI_RED + "[Semantic error] Line " + lineNumber + ": " + msg + ANSI_RESET);
+            System.err.println(CommandLineText.ANSI_RED + "[Semantic error] Line " + lineNumber + ": " + msg + CommandLineText.ANSI_RESET);
             semanticStatus = false;
         }
     }
@@ -109,16 +103,16 @@ public class CompilationEngine {
      */
     private void semanticWarning(int lineNumber, String msg) {
         if (SEMANTIC_ANALYSIS)
-            System.err.println(ANSI_YELLOW + "[Semantic warning] Line " + lineNumber + ": " + msg + ANSI_RESET);
+            System.err.println(CommandLineText.ANSI_YELLOW + "[Semantic warning] Line " + lineNumber + ": " + msg + CommandLineText.ANSI_RESET);
     }
 
     /**
      * Resolve identifier that are yet to be resolved after the compilation has finished.
      * Note: this happens when a function is used before it has been declared or if a function
      * is part of another class.
-     * @throws IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void resolveIdentifiers() throws IOException {
+    private void resolveIdentifiers() throws TokenizerException {
         for(Iterator<Identifier> iter = this.unresolvedIdentifiers.iterator(); iter.hasNext(); ) {
             Identifier id = iter.next();
 
@@ -145,10 +139,11 @@ public class CompilationEngine {
      * Parse a class.
      * classDeclaration → class identifier { {memberDeclaration} }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws IOException thrown if the vm writer runs into an issue writing the output code.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseClass() throws ParserException, IOException {
+    private void parseClass() throws ParserException, TokenizerException, IOException {
         parseKeyword("class");
 
         // Symbol table is yet to be initialized so instead of calling
@@ -175,10 +170,11 @@ public class CompilationEngine {
      * Parse a member declaration.
      * memberDeclaration → classVarDeclaration | subroutineDeclaration
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws IOException thrown if the vm writer runs into an issue writing the output code.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseMemberDeclaration() throws ParserException, IOException {
+    private void parseMemberDeclaration() throws ParserException, TokenizerException, IOException {
         Token decType = this.t.peekNextToken();
 
         if (decType.lexeme.equals("static") || decType.lexeme.equals("field"))
@@ -193,10 +189,10 @@ public class CompilationEngine {
      * Parse the variable declaration section.
      * classVarDeclaration → (static | field) type identifier {, identifier} ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseClassVarDeclaration() throws ParserException, IOException {
+    private void parseClassVarDeclaration() throws ParserException, TokenizerException {
         Token decType = this.t.getNextToken();
 
         if (!decType.lexeme.equals("static") && !decType.lexeme.equals("field"))
@@ -211,11 +207,11 @@ public class CompilationEngine {
      * Parse the type declaration for a variable.
      * type → int | char | boolean | identifier.
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the type that has been detected.
      */
-    private String parseType() throws ParserException, IOException {
+    private String parseType() throws ParserException, TokenizerException {
         Token type = this.t.getNextToken();
 
         if (!type.lexeme.equals("int") && !type.lexeme.equals("char")
@@ -229,10 +225,11 @@ public class CompilationEngine {
      * Parse the subroutine declaration section.
      * subroutineDeclaration → (constructor | function | method) (type|void) identifier (paramList) subroutineBody
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws IOException thrown if the vm writer runs into an issue writing the output code.
      */
-    private void parseSubRoutineDeclaration() throws ParserException, IOException {
+    private void parseSubRoutineDeclaration() throws ParserException, TokenizerException, IOException {
         String type;
         Token identifier;
         String functionType = this.t.getNextToken().lexeme;
@@ -302,7 +299,7 @@ public class CompilationEngine {
         this.w.writeNow();
 
         // SEMANTIC ANALYSIS - check all code paths return.
-        if (!type.equals("void") && !returnsAllCodePaths)
+        if (!returnsAllCodePaths)
             semanticError(this.t.peekNextToken().lineNumber, "Not all code paths return.");
 
         parseSymbol("}");
@@ -315,10 +312,10 @@ public class CompilationEngine {
      * Parse the parameter list.
      * paramList → type identifier {, type identifier} | ε
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseParamList() throws ParserException, IOException {
+    private void parseParamList() throws ParserException, TokenizerException {
         if (this.t.peekNextToken().lexeme.equals(")"))
             return;
 
@@ -334,10 +331,10 @@ public class CompilationEngine {
      * Parse a subroutine body.
      * subroutineBody → { {statement} }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private boolean parseSubroutineBody() throws ParserException, IOException {
+    private boolean parseSubroutineBody() throws ParserException, TokenizerException {
         boolean returnsOnAllCodePaths = false;
 
         while (!this.t.peekNextToken().lexeme.equals("}")) {
@@ -354,10 +351,10 @@ public class CompilationEngine {
      * Parse a statement.
      * statement → varDeclarationStatement | letStatement | ifStatement | whileStatement | doStatement | returnStatement
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private boolean parseStatement() throws ParserException, IOException {
+    private boolean parseStatement() throws ParserException, TokenizerException {
         boolean returnsOnAllCodePaths = false;
         Token statementStart = this.t.peekNextToken();
 
@@ -392,10 +389,10 @@ public class CompilationEngine {
      * Parse a variable declaration within a statement.
      * varDeclarationStatement → var type identifier { , identifier } ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseVarDeclarationStatement() throws ParserException, IOException {
+    private void parseVarDeclarationStatement() throws ParserException, TokenizerException {
         parseKeyword("var");
         parseVariableDeclaration(false, false, "local");
         parseSymbol(";");
@@ -405,11 +402,11 @@ public class CompilationEngine {
      * Parse a let statement.
      * letStatement → let identifier [ [ expression ] ] = expression ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseLetStatement() throws ParserException, IOException {
-        String type;
+    private void parseLetStatement() throws ParserException, TokenizerException {
+        String expType;
         Identifier identifier;
         boolean isArrayIdentifier = false;
 
@@ -421,7 +418,7 @@ public class CompilationEngine {
             isArrayIdentifier = true;
             this.t.getNextToken();
 
-            type = parseExpression();
+            expType = parseExpression();
 
             // VM CODE - Add array index to vm code
             if (identifier != null) {
@@ -430,25 +427,29 @@ public class CompilationEngine {
             }
 
             // SEMANTIC ANALYSIS - Check that an array index evaluates to an integer constant
-            if (identifier != null && !type.equals("int"))
+            if (identifier != null && !expType.equals("int"))
                 semanticError(identifier.getLineNumber(), "Expression in array indices must always evaluate to an integer.");
 
             parseSymbol("]");
         }
 
         parseSymbol("=");
-        type = parseExpression();
+        expType = parseExpression();
 
         // SEMANTIC ANALYSIS - Check type matches LHS.
         // Things to note:
-        // - Array can support any data type.
-        // - Int can be indirectly converted to a boolean.
-        // TODO Clean up.
-        if (identifier != null && identifier.getType().equals("boolean") && type.equals("int")) {
-            type = "boolean";
-        } if (identifier != null && !type.equals("") && !type.equals(identifier.getType()) && !identifier.getType().equals("Array") &&
-                (type.equals("boolean") || type.equals("char") || type.equals("int")))
-            semanticError(identifier.getLineNumber(), "Cannot assign type " + type + " to " + identifier.getType() + ".");
+        // - Int can be assigned to any data type
+        // - Any object can be assigned an int (pointer)
+        if (identifier != null) {
+            String idType = identifier.getType();
+
+            boolean idIsObject = !idType.equals("char") && !idType.equals("boolean");
+            boolean expIsObject = !expType.equals("char") && !expType.equals("boolean");
+
+            if (!expType.equals(idType) && !expType.equals("") && !expType.equals("int")
+                    && !(idIsObject && expType.equals("null")) && !(idType.equals("int") && expIsObject))
+                semanticError(identifier.getLineNumber(), "Cannot assign type " + expType + " to " + idType + ".");
+        }
 
         parseSymbol(";");
 
@@ -475,12 +476,12 @@ public class CompilationEngine {
      * Parse an if statement.
      * ifStatement → if ( expression ) { {statement} } [else { {statement} }]
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private boolean parseIfStatement() throws ParserException, IOException {
+    private boolean parseIfStatement() throws ParserException, TokenizerException {
         boolean returnsOnAllCodePaths;
-        boolean elseReturnsOnAllCodePaths = true;
+        boolean elseReturnsOnAllCodePaths = false;
 
         // Increment label counter to generate unique label value
         int labelValue = this.labelCounter++;
@@ -504,6 +505,7 @@ public class CompilationEngine {
 
         parseSymbol("{");
         returnsOnAllCodePaths = parseStatementBody();
+        System.out.println("if: " + returnsOnAllCodePaths);
         parseSymbol("}");
 
         // VM CODE - write if statement code
@@ -516,6 +518,7 @@ public class CompilationEngine {
             this.t.getNextToken();
             parseSymbol("{");
             elseReturnsOnAllCodePaths = parseStatementBody();
+            System.out.println("else: " + elseReturnsOnAllCodePaths);
             parseSymbol("}");
 
             // VM CODE - write if statement code
@@ -532,10 +535,10 @@ public class CompilationEngine {
      * Parse a while statement.
      * whileStatement → while ( expression ) { {statement} }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseWhileStatement() throws ParserException, IOException {
+    private void parseWhileStatement() throws ParserException, TokenizerException {
         // Increment label counter to generate unique label value
         int labelValue = this.labelCounter++;
 
@@ -575,10 +578,10 @@ public class CompilationEngine {
      * Parse a do statement.
      * doStatement → do subroutineCall ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseDoStatement() throws ParserException, IOException {
+    private void parseDoStatement() throws ParserException, TokenizerException {
         parseKeyword("do");
         parseSubroutineCall();
 
@@ -591,10 +594,10 @@ public class CompilationEngine {
     /** Parse a return statement.
      * returnStatement → return [ expression ] ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseReturnStatement() throws ParserException, IOException {
+    private void parseReturnStatement() throws ParserException, TokenizerException {
         String type = "void";
         parseKeyword("return");
 
@@ -631,10 +634,10 @@ public class CompilationEngine {
      * Parse a subroutine call.
      * subroutineCall → identifier [ . identifier ] ( expressionList ) ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSubroutineCall() throws ParserException, IOException {
+    private void parseSubroutineCall() throws ParserException, TokenizerException {
         parseSubroutineCall(parseIdentifier(false, true));
     }
 
@@ -642,10 +645,10 @@ public class CompilationEngine {
      * Parse a subroutine call.
      * subroutineCall → identifier [ . identifier ] ( expressionList ) ;
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    public void parseSubroutineCall(Identifier identifier) throws ParserException, IOException {
+    public void parseSubroutineCall(Identifier identifier) throws ParserException, TokenizerException {
         int offset = 0;
 
         parseSymbol("(");
@@ -655,25 +658,25 @@ public class CompilationEngine {
         if (identifier != null && identifier.getCIdName() != null &&
                 (identifier.getCIdName().equals(this.globalSt.getName()) || identifier.getCIdName().equals(""))) {
             if (this.subSt.getKind() == Symbol.Kind.METHOD || this.subSt.getKind() == Symbol.Kind.CONSTRUCTOR) {
-                if (this.cSt.scopeContains(identifier.getCIdName())) {
-                    this.w.writeLater("push " + identifier.getKind().toString() + " "
-                            + identifier.getIndex());
+                if (identifier.getId() != null && identifier.getCId() != null && this.cSt.scopeContains(identifier.getCId().getName())) {
+                    this.w.writeLater("push " + identifier.getCId().getKind().toString() + " " + identifier.getCId().getIndex());
                     offset = 1;
-                } else if (identifier.getCIdName().equals("this")) {
+                } else if (identifier.getCId() != null && identifier.getCId().getName().equals("this")) {
                     this.w.writeLater("push pointer 0");
                     offset = 1;
                 }
             } else {
+                // TODO - try getting it to work with functions that are yet to be declared.
                 // SEMANTIC ANALYSIS - Check if method invocation from function
-                if (identifier.getId() != null
-                        && (identifier.getId().getKind() == Symbol.Kind.METHOD))
-                    semanticError(identifier.getLineNumber(), "Function cannot call a method.");
+                if (identifier.getId() != null && (identifier.getId().getKind() == Symbol.Kind.METHOD
+                        || identifier.getId().getKind() == Symbol.Kind.FUNCTION))
+                    semanticError(identifier.getLineNumber(), "Subroutine called as a method from within a function.");
             }
 
         // If method invocation is in another class
         } else {
             // Check to see if the first identifier needs to be pushed
-            if (identifier != null && identifier.getCId() != null && this.cSt.scopeContains(identifier.getCIdName())) {
+            if (identifier != null && identifier.getCId() != null && this.cSt.scopeContains(identifier.getCId().getName())) {
                 this.w.writeLater("push " + identifier.getCId().getKind().toString() + " " + identifier.getCId().getIndex());
                 offset = 1;
             }
@@ -699,10 +702,10 @@ public class CompilationEngine {
      * Parse an expression list.
      * expressionList → expression { , expression } | ε
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private LinkedList<String> parseExpressionList() throws ParserException, IOException {
+    private LinkedList<String> parseExpressionList() throws ParserException, TokenizerException {
         LinkedList<String> paramTypes = new LinkedList<>();
 
         if (!this.t.peekNextToken().lexeme.equals(")")) {
@@ -721,10 +724,10 @@ public class CompilationEngine {
      * Parse an expression.
      * expression → relationalExpression { ( & | | ) relationalExpression }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseExpression() throws ParserException, IOException {
+    private String parseExpression() throws ParserException, TokenizerException {
         String type;
         Token operator;
 
@@ -752,10 +755,10 @@ public class CompilationEngine {
      * Parse relational expression.
      * relationalExpression → arithmeticExpression { ( = | > | < ) arithmeticExpression }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseRelationalExpression() throws ParserException, IOException {
+    private String parseRelationalExpression() throws ParserException, TokenizerException {
         String type;
         Token operator;
         type = parseArithmeticExpression();
@@ -785,10 +788,10 @@ public class CompilationEngine {
      * Parse an arithmetic expression.
      * arithmeticExpression → term { ( + | - ) term }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseArithmeticExpression() throws ParserException, IOException {
+    private String parseArithmeticExpression() throws ParserException, TokenizerException {
         String type;
         Token operator;
         type = parseTerm();
@@ -815,10 +818,10 @@ public class CompilationEngine {
      * Parse a term.
      * term → factor { ( * | / ) factor }
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseTerm() throws ParserException, IOException {
+    private String parseTerm() throws ParserException, TokenizerException {
         String type;
         Token operator;
         type = parseFactor();
@@ -845,10 +848,10 @@ public class CompilationEngine {
      * Parse a factor.
      * factor → ( - | ~ | e ) operand
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseFactor() throws ParserException, IOException {
+    private String parseFactor() throws ParserException, TokenizerException {
         String type;
         Token operator = this.t.peekNextToken();
 
@@ -871,10 +874,10 @@ public class CompilationEngine {
      * operand → integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList) ] | (expression) | stringLiteral | true | false | null | this | subroutineCall
      * (edited to allow this keyword to represent a class variable)
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private String parseOperand() throws ParserException, IOException {
+    private String parseOperand() throws ParserException, TokenizerException {
         String type;
         Token typeToken = this.t.peekNextToken();
 
@@ -899,7 +902,7 @@ public class CompilationEngine {
                     this.w.writeLater("call String.appendChar 2");
                 }
 
-                type = "string_constant";
+                type = "String";
             } else if (typeToken.lexeme.equals("true") || typeToken.lexeme.equals("false")) {
                 // VM CODE - Write true/false constants
                 if (typeToken.lexeme.equals("true")) {
@@ -990,10 +993,10 @@ public class CompilationEngine {
      * Parse a symbol, given the symbol that is being looked for.
      *
      * @param symbol the symbol to be parsed.
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseSymbol(String symbol) throws ParserException, IOException {
+    private void parseSymbol(String symbol) throws ParserException, TokenizerException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(symbol))
             throw new ParserException(token.lineNumber, "Expected " + symbol + ". Got: " + token.lexeme);
@@ -1003,10 +1006,10 @@ public class CompilationEngine {
      * Parse a keyword, given the keyword that is being looked for.
      *
      * @param keyword the keyword to be parsed.
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void parseKeyword(String keyword) throws ParserException, IOException {
+    private void parseKeyword(String keyword) throws ParserException, TokenizerException {
         Token token = this.t.getNextToken();
         if (!token.lexeme.equals(keyword))
             throw new ParserException(token.lineNumber, "Expected " + keyword + " keyword. Got: " + token.lexeme);
@@ -1015,11 +1018,11 @@ public class CompilationEngine {
     /**
      * Parse an Identifier.
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      * @return Token, the identifier.
      */
-    private Identifier parseIdentifier() throws ParserException, IOException {
+    private Identifier parseIdentifier() throws ParserException, TokenizerException {
         return parseIdentifier(false, false);
     }
 
@@ -1028,11 +1031,11 @@ public class CompilationEngine {
      *
      * @param declaredCheck, check that the identifier that has been used has been declared previously.
      * @param initializedCheck, check whether the identifier has been initialized before being used.
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      * @return String, the identifier name.
      */
-    private Identifier parseIdentifier(boolean declaredCheck, boolean initializedCheck) throws ParserException, IOException {
+    private Identifier parseIdentifier(boolean declaredCheck, boolean initializedCheck) throws ParserException, TokenizerException {
         Token newToken = this.t.getNextToken();
         boolean isClassIdentifier;
 
@@ -1159,7 +1162,6 @@ public class CompilationEngine {
                         if (initializedCheck && !this.cSt.scopeFindSymbol(newScopedToken.lexeme).isInitialized())
                             semanticWarning(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used before being initialized.");
 
-
                         // SEMANTIC ANALYSIS - Identifier used without declaring
                         if (declaredCheck)
                             semanticError(newScopedToken.lineNumber, "Identifier " + newScopedToken.lexeme + " used without previously declaring.");
@@ -1174,8 +1176,10 @@ public class CompilationEngine {
                         }
                     } else {
                         return new Identifier(
-                                this.globalSt.findSymbol(newScopedToken.lexeme),
+                                classType,
                                 this.cSt.scopeFindSymbol(newToken.lexeme),
+                                newScopedToken.lexeme,
+                                this.globalSt.findSymbol(newScopedToken.lexeme),
                                 newScopedToken.lineNumber
                         );
                     }
@@ -1203,10 +1207,10 @@ public class CompilationEngine {
      *
      * @param singleIdentifierOnly whether to continue searching for more identifiers or just detect a single identifier.
      * @param kind the kind of the variable i.e. static, field, argument, var.
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private Symbol parseVariableDeclaration(boolean singleIdentifierOnly, boolean isInitialized, String kind) throws ParserException, IOException {
+    private Symbol parseVariableDeclaration(boolean singleIdentifierOnly, boolean isInitialized, String kind) throws ParserException, TokenizerException {
         String type = parseType();
         Token identifier = this.t.getNextToken();
         Symbol symbol;
@@ -1232,10 +1236,10 @@ public class CompilationEngine {
     /**
      * Parse a statement body.
      *
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private boolean parseStatementBody() throws ParserException, IOException {
+    private boolean parseStatementBody() throws ParserException, TokenizerException {
         boolean returnsOnAllCodePaths = false;
 
         if (!this.t.peekNextToken().lexeme.equals("}")) {
@@ -1252,9 +1256,9 @@ public class CompilationEngine {
      *
      * @param identifier the identifier that the arguments are a part of.
      * @param paramTypes a list of parameter types that have been found.
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
      */
-    private void checkSubroutineArguments(Identifier identifier, LinkedList<String> paramTypes) throws IOException {
+    private void checkSubroutineArguments(Identifier identifier, LinkedList<String> paramTypes) throws TokenizerException {
         // If the subroutine has not yet been declared or is not part of this class then don't check argument types.
         if (identifier != null && identifier.getId() != null) {
             Symbol.Kind subroutineKind = identifier.getKind();
@@ -1291,10 +1295,10 @@ public class CompilationEngine {
      * Parse a conditional statement of the form (condition).
      * This is used as part of a while loop or if statement.
      *
-     * @throws IOException, IOException thrown if the tokenizer runs into an issue reading the source code.
-     * @throws ParserException, ParserException thrown if the parser runs into a syntax error and must stop.
+     * @throws TokenizerException thrown if the tokenizer runs into an issue reading the source code.
+     * @throws ParserException thrown if the parser runs into a syntax error and must stop.
      */
-    private void parseConditionalStatement() throws IOException, ParserException {
+    private void parseConditionalStatement() throws ParserException, TokenizerException {
         parseSymbol("(");
         parseExpression();
         parseSymbol(")");

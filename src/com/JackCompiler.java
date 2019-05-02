@@ -61,13 +61,18 @@ public class JackCompiler {
             try {
                 compilationEngine.run();
             } catch (ParserException e) {
-                e.printStackTrace();
                 compilationEngine.deleteVMCode();
-                System.err.println("[Parsing error] Line " + e.getLineNumber() + ": " + e.getMessage());
+                System.err.println(CommandLineText.ANSI_RED + "[Parsing error] Line "
+                        + e.getLineNumber() + ": " + e.getMessage() + CommandLineText.ANSI_RESET);
+                System.exit(1);
+            } catch (TokenizerException e) {
+                compilationEngine.deleteVMCode();
+                System.err.println(CommandLineText.ANSI_RED + "[Tokenizer Error] Line "
+                        + e.getLineNumber() + ": " + e.getMessage() + CommandLineText.ANSI_RESET);
                 System.exit(1);
             }
         } catch (IOException e) {
-            System.err.println("[IO Error] " + e.getMessage());
+            System.err.println(CommandLineText.ANSI_RED + "[IO Error] " + e.getMessage() + CommandLineText.ANSI_RESET);
             System.exit(1);
         }
     }
